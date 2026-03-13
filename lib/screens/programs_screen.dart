@@ -169,6 +169,7 @@ class _ProgramsScreenState extends State<ProgramsScreen> {
                   number: index + 1,
                   title: (program['title'] ?? '').toString(),
                   description: (program['description'] ?? '').toString(),
+                  imageUrl: (program['image_url'] ?? '').toString(),
                   icon: _iconFromKey((program['icon_key'] ?? '').toString()),
                   color: _parseColor(
                     (program['color_hex'] ?? '#4FA8D5').toString(),
@@ -188,6 +189,7 @@ class _ProgramCard extends StatelessWidget {
   final int number;
   final String title;
   final String description;
+  final String imageUrl;
   final IconData icon;
   final Color color;
 
@@ -195,12 +197,15 @@ class _ProgramCard extends StatelessWidget {
     required this.number,
     required this.title,
     required this.description,
+    required this.imageUrl,
     required this.icon,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = imageUrl.trim().isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -227,7 +232,16 @@ class _ProgramCard extends StatelessWidget {
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 26),
+              clipBehavior: Clip.antiAlias,
+              child: hasImage
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(icon, color: color, size: 26);
+                      },
+                    )
+                  : Icon(icon, color: color, size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(

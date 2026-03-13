@@ -144,11 +144,12 @@
 
     programsList.innerHTML = programs
       .map((row) => {
+        const subtitle = row.image_url ? `${row.description} | image: ${row.image_url}` : row.description;
         const actions = `
           <button class="ghost" data-edit-program='${JSON.stringify(row)}'>Edit</button>
           <button class="danger" data-delete-program="${row.id}">Delete</button>
         `;
-        return buildItem(row.title, row.description, actions, row.is_active ? "active" : "inactive");
+        return buildItem(row.title, subtitle, actions, row.is_active ? "active" : "inactive");
       })
       .join("");
 
@@ -248,7 +249,9 @@
       <input name="title" placeholder="Title" value="${escapeHtml(row.title || "")}" required />
       <textarea name="description" placeholder="Description" required>${escapeHtml(row.description || "")}</textarea>
       <input name="icon_key" placeholder="school/palette/people/book/music/run" value="${escapeHtml(row.icon_key || "school")}" />
+      <input name="image_url" placeholder="https://..." value="${escapeHtml(row.image_url || "")}" />
       <input name="color_hex" placeholder="#4FA8D5" value="${escapeHtml(row.color_hex || "#4FA8D5")}" />
+      <input name="display_order" placeholder="Display order" type="number" min="0" value="${escapeHtml(row.display_order || 0)}" />
       <label class="toggle-label">
         <input name="is_active" type="checkbox" class="toggle-input" ${checked} />
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -279,6 +282,7 @@
       p_title: fd.get("title"),
       p_description: fd.get("description"),
       p_icon_key: fd.get("icon_key"),
+      p_image_url: fd.get("image_url"),
       p_color_hex: fd.get("color_hex"),
       p_is_active: fd.get("is_active") === "on",
       p_display_order: Number(fd.get("display_order") || 0)

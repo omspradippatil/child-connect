@@ -368,12 +368,16 @@ create table if not exists public.program_catalog (
   title text not null check (char_length(trim(title)) >= 2),
   description text not null check (char_length(trim(description)) >= 10),
   icon_key text not null default 'school',
+  image_url text,
   color_hex text not null default '#4FA8D5',
   is_active boolean not null default true,
   display_order int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.program_catalog
+add column if not exists image_url text;
 
 create index if not exists idx_program_catalog_active_order
 on public.program_catalog (is_active, display_order, created_at desc);
@@ -408,7 +412,7 @@ as $$
     '[]'::jsonb
   )
   from (
-    select id, title, description, icon_key, color_hex, display_order
+    select id, title, description, icon_key, image_url, color_hex, display_order
     from public.program_catalog
     where is_active = true
     order by display_order asc, created_at desc
@@ -443,7 +447,7 @@ begin
       (
         select jsonb_agg(to_jsonb(p))
         from (
-          select id, title, description, icon_key, color_hex, is_active, display_order, created_at
+          select id, title, description, icon_key, image_url, color_hex, is_active, display_order, created_at
           from public.program_catalog
           order by display_order asc, created_at desc
         ) p
@@ -524,6 +528,7 @@ create or replace function public.app_admin_upsert_program(
   p_title text,
   p_description text,
   p_icon_key text,
+  p_image_url text,
   p_color_hex text,
   p_is_active boolean,
   p_display_order int
@@ -543,6 +548,7 @@ begin
       title,
       description,
       icon_key,
+      image_url,
       color_hex,
       is_active,
       display_order
@@ -551,6 +557,7 @@ begin
       trim(p_title),
       trim(p_description),
       lower(trim(coalesce(p_icon_key, 'school'))),
+      nullif(trim(coalesce(p_image_url, '')), ''),
       coalesce(nullif(trim(p_color_hex), ''), '#4FA8D5'),
       coalesce(p_is_active, true),
       coalesce(p_display_order, 0)
@@ -562,6 +569,7 @@ begin
       title = trim(p_title),
       description = trim(p_description),
       icon_key = lower(trim(coalesce(p_icon_key, 'school'))),
+      image_url = nullif(trim(coalesce(p_image_url, '')), ''),
       color_hex = coalesce(nullif(trim(p_color_hex), ''), '#4FA8D5'),
       is_active = coalesce(p_is_active, true),
       display_order = coalesce(p_display_order, display_order),
@@ -698,7 +706,7 @@ revoke all on function public.app_get_public_children() from public;
 revoke all on function public.app_get_public_programs() from public;
 revoke all on function public.app_admin_list_content(text) from public;
 revoke all on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, boolean, int) from public;
-revoke all on function public.app_admin_upsert_program(text, uuid, text, text, text, text, boolean, int) from public;
+revoke all on function public.app_admin_upsert_program(text, uuid, text, text, text, text, text, boolean, int) from public;
 revoke all on function public.app_admin_list_requests(text) from public;
 revoke all on function public.app_admin_update_request_status(text, text, uuid, text) from public;
 revoke all on function public.app_admin_delete_child(text, uuid) from public;
@@ -713,7 +721,7 @@ grant execute on function public.app_get_public_children() to anon, authenticate
 grant execute on function public.app_get_public_programs() to anon, authenticated, service_role;
 grant execute on function public.app_admin_list_content(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, boolean, int) to anon, authenticated, service_role;
-grant execute on function public.app_admin_upsert_program(text, uuid, text, text, text, text, boolean, int) to anon, authenticated, service_role;
+grant execute on function public.app_admin_upsert_program(text, uuid, text, text, text, text, text, boolean, int) to anon, authenticated, service_role;
 grant execute on function public.app_admin_list_requests(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_update_request_status(text, text, uuid, text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_delete_child(text, uuid) to anon, authenticated, service_role;
