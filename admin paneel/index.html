@@ -1,108 +1,208 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Child Connect Admin Panel</title>
+  <meta name="description" content="Admin and mentor management panel for Child Connect" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <!-- ══ AUTH VIEW ══ -->
   <div id="authView" class="auth-wrap">
-    <div class="card auth-card">
-      <h1>Admin And Mentor Panel</h1>
-      <p class="muted">Sign in with an admin or mentor account.</p>
+    <div class="auth-card">
+      <h1>👶 Child Connect</h1>
+      <p class="muted" style="margin-bottom:20px">Sign in with an admin or mentor account.</p>
       <form id="loginForm" class="stack">
-        <input id="email" type="email" placeholder="Admin or mentor email" required />
+        <input id="email" type="email" placeholder="Email address" required />
         <input id="password" type="password" placeholder="Password" required />
-        <button type="submit">Sign In</button>
+        <button type="submit" id="signInBtn">Sign In</button>
       </form>
-      <p id="authError" class="error"></p>
+      <p id="authError" class="error" style="margin-top:10px"></p>
     </div>
   </div>
 
+  <!-- ══ APP VIEW ══ -->
   <div id="appView" class="app hidden">
+
+    <!-- Sidebar -->
     <aside class="sidebar">
-      <h2>Child Connect</h2>
-      <button class="nav-btn active" data-tab="overview">Overview</button>
-      <button class="nav-btn" data-tab="children">Children</button>
-      <button class="nav-btn" data-tab="programs">Programs</button>
-      <button class="nav-btn" data-tab="requests">Requests</button>
-      <button class="nav-btn" data-tab="team">Team</button>
-      <button class="nav-btn" data-tab="mentorChat">Mentor Chat</button>
-      <button id="logoutBtn" class="nav-btn danger">Logout</button>
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">👶</div>
+        <div>
+          <div class="sidebar-brand-text">Child Connect</div>
+          <div class="sidebar-brand-sub">Admin Panel</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section-label">Navigation</div>
+      <button class="nav-btn active" data-tab="overview" id="nav-overview">
+        <span class="nav-icon">📊</span> Overview
+      </button>
+      <button class="nav-btn" data-tab="children" id="nav-children">
+        <span class="nav-icon">👧</span> Children
+      </button>
+      <button class="nav-btn" data-tab="programs" id="nav-programs">
+        <span class="nav-icon">📚</span> Programs
+      </button>
+      <button class="nav-btn" data-tab="requests" id="nav-requests">
+        <span class="nav-icon">📋</span> Requests
+      </button>
+      <button class="nav-btn" data-tab="team" id="nav-team">
+        <span class="nav-icon">👥</span> Team
+      </button>
+      <button class="nav-btn" data-tab="mentorChat" id="nav-mentorChat">
+        <span class="nav-icon">💬</span> Mentor Chat
+      </button>
+
+      <div class="sidebar-spacer"></div>
+
+      <!-- Dark mode toggle -->
+      <div class="dark-toggle" id="darkToggle" role="button" tabindex="0" title="Toggle dark mode">
+        <span>🌙</span>
+        <span style="flex:1">Dark Mode</span>
+        <div class="dark-toggle-switch"></div>
+      </div>
+
+      <!-- User info -->
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
+        <div>
+          <div class="sidebar-user-name" id="sidebarName">Admin</div>
+          <div class="sidebar-user-role" id="sidebarRole">admin</div>
+        </div>
+      </div>
+
+      <button id="logoutBtn" class="nav-btn danger">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
     </aside>
 
+    <!-- Main Content -->
     <main class="content">
+
+      <!-- OVERVIEW TAB -->
       <section id="overview" class="tab active">
-        <h3>Overview</h3>
+        <div class="page-header">
+          <span class="page-title">Dashboard Overview</span>
+          <button class="export-btn" id="exportOverviewBtn">⬇ Export CSV</button>
+        </div>
         <div class="stats" id="stats"></div>
+        <div class="dashboard-grid" id="dashboardGrid">
+          <div class="panel-card">
+            <h4>📅 Recent Activity</h4>
+            <div id="activityFeed"><div class="shimmer"></div></div>
+          </div>
+          <div class="panel-card">
+            <h4>⚡ Quick Stats</h4>
+            <div class="quick-stats" id="quickStats">
+              <div class="shimmer" style="height:120px;grid-column:1/-1"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
+      <!-- CHILDREN TAB -->
       <section id="children" class="tab">
         <div class="section-head">
-          <h3>Children Profiles</h3>
-          <button id="addChildBtn">Add Child</button>
+          <span class="page-title">Children Profiles</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input id="childSearch" type="search" placeholder="Search by name or location…" />
+            </div>
+            <button class="export-btn" id="exportChildrenBtn">⬇ Export CSV</button>
+            <button id="addChildBtn">＋ Add Child</button>
+          </div>
         </div>
-        <div id="childrenList" class="list"></div>
+        <div id="childrenList" class="child-cards-grid"></div>
       </section>
 
+      <!-- PROGRAMS TAB -->
       <section id="programs" class="tab">
         <div class="section-head">
-          <h3>Programs</h3>
-          <button id="addProgramBtn">Add Program</button>
+          <span class="page-title">Programs</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input id="programSearch" type="search" placeholder="Search programs…" />
+            </div>
+            <button id="addProgramBtn">＋ Add Program</button>
+          </div>
         </div>
         <div id="programsList" class="list"></div>
       </section>
 
+      <!-- REQUESTS TAB -->
       <section id="requests" class="tab">
-        <h3>Requests</h3>
+        <div class="page-header">
+          <span class="page-title">Requests</span>
+          <button class="export-btn" id="exportRequestsBtn">⬇ Export CSV</button>
+        </div>
+        <div class="filter-tabs" id="requestFilterTabs">
+          <button class="filter-tab active" data-filter="all">All</button>
+          <button class="filter-tab" data-filter="submitted">Submitted</button>
+          <button class="filter-tab" data-filter="pending">Pending</button>
+          <button class="filter-tab" data-filter="approved">Approved</button>
+          <button class="filter-tab" data-filter="rejected">Rejected</button>
+        </div>
         <div class="request-grid">
           <div>
-            <h4>Adoption</h4>
+            <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">🏠 Adoption</h4>
             <div id="adoptionList" class="list"></div>
           </div>
           <div>
-            <h4>Mentor</h4>
+            <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">🤝 Mentor</h4>
             <div id="mentorList" class="list"></div>
           </div>
           <div>
-            <h4>Contact</h4>
+            <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">✉️ Contact</h4>
             <div id="contactList" class="list"></div>
           </div>
         </div>
       </section>
 
+      <!-- TEAM TAB -->
       <section id="team" class="tab">
         <div class="section-head">
-          <h3>Team Management</h3>
-          <button id="addTeamMemberBtn">Add Admin Or Mentor</button>
+          <span class="page-title">Team Management</span>
+          <button id="addTeamMemberBtn">＋ Add Admin / Mentor</button>
         </div>
         <div id="teamList" class="list"></div>
       </section>
 
+      <!-- MENTOR CHAT TAB -->
       <section id="mentorChat" class="tab">
-        <h3>Mentor Chat</h3>
+        <div class="page-header"><span class="page-title">💬 Mentor Chat</span></div>
         <div class="chat-layout">
-          <div>
-            <h4>User Threads</h4>
+          <div class="chat-threads-panel">
+            <h4 style="font-size:13px;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">User Threads</h4>
             <div id="chatThreads" class="list"></div>
           </div>
-          <div class="chat-panel card">
-            <h4 id="activeChatTitle">Select a thread</h4>
+          <div class="chat-panel">
+            <h4 id="activeChatTitle" style="margin-bottom:12px;font-size:15px;font-weight:600">Select a thread</h4>
             <div id="chatMessages" class="chat-messages"></div>
             <form id="chatSendForm" class="stack">
-              <textarea id="chatInput" placeholder="Type reply to user..." rows="3"></textarea>
-              <button type="submit">Send</button>
+              <textarea id="chatInput" placeholder="Type reply to user…" rows="3"></textarea>
+              <button type="submit">Send ➤</button>
             </form>
           </div>
         </div>
       </section>
+
     </main>
   </div>
 
+  <!-- ══ EDITOR DIALOG ══ -->
   <dialog id="editorDialog">
-    <form id="editorForm" method="dialog" class="stack"></form>
+    <div class="dialog-inner">
+      <form id="editorForm" method="dialog" class="stack"></form>
+    </div>
   </dialog>
+
+  <!-- ══ TOAST CONTAINER ══ -->
+  <div id="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
