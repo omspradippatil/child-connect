@@ -35,3 +35,5 @@ The goal of this web application is to make the adoption process more transparen
 🛠️ Technologies Used
 
 📂 Project Structure
+
+And app is developed 
