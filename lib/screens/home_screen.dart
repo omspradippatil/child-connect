@@ -7,6 +7,7 @@ import 'mission_screen.dart';
 import 'programs_screen.dart';
 import 'mentor_screen.dart';
 import 'contact_screen.dart';
+import 'chatbot_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,6 +16,16 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFCF7F2),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+        ),
+        backgroundColor: AppTheme.primaryOrange,
+        child: const Icon(Icons.chat_bubble_outline),
+        tooltip: 'Chat with assistant',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
