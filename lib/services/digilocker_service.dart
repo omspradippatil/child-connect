@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -54,9 +54,6 @@ class DigiLockerService {
   /// Used directly from the UI to encapsulate the verification logic.
   static Future<bool> verifyUserIdentity(BuildContext context) async {
     try {
-      // 1. Launch the actual DigiLocker URL
-      await launchDigiLockerLogin();
-
       if (!context.mounted) return false;
 
       // 2. Simulate the redirect capture using a Dialog for educational purposes.
@@ -240,21 +237,38 @@ class DigiLockerService {
                                   ),
                                 ],
                               ),
-                              if (selectedCertificate != null &&
-                                  !selectedCertificate!.path.startsWith(
-                                    'http',
-                                  ) &&
-                                  File(
-                                    selectedCertificate!.path,
-                                  ).existsSync()) ...[
+                              if (selectedCertificate != null) ...[
                                 const SizedBox(height: 12),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: Image.file(
-                                    File(selectedCertificate!.path),
-                                    height: 160,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
+                                  child: FutureBuilder<Uint8List>(
+                                    future: selectedCertificate!.readAsBytes(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const SizedBox(
+                                          height: 160,
+                                          child: Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        );
+                                      }
+                                      if (snapshot.hasError ||
+                                          !snapshot.hasData) {
+                                        return const SizedBox(
+                                          height: 160,
+                                          child: Center(
+                                            child: Text('Error loading image'),
+                                          ),
+                                        );
+                                      }
+                                      return Image.memory(
+                                        snapshot.data!,
+                                        height: 160,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
