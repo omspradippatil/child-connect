@@ -214,6 +214,63 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Text(
+                'Contribute Your Time Or Support',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textDark,
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ContributionCard(
+                      title: 'Become A Donor',
+                      description:
+                          'Support meals, education, health care, and essentials for children through one-time or recurring contributions.',
+                      icon: Icons.volunteer_activism_rounded,
+                      color: const Color(0xFFFF8A65),
+                      buttonLabel: 'Contribute',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ContactScreen(
+                            pageTitle: 'Become a Donor',
+                            initialMessage:
+                                'I want to contribute as a donor/supporter. Please share the next steps for donation, sponsorship, or child support programs.',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ContributionCard(
+                      title: 'Volunteer Free Time',
+                      description:
+                          'Take sessions for orphans, join social work activities, or mentor children in arts, reading, sports, and life skills.',
+                      icon: Icons.groups_rounded,
+                      color: const Color(0xFF4FA8D5),
+                      buttonLabel: 'Volunteer',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MentorScreen()),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -513,6 +570,77 @@ class _FacilityCard extends StatelessWidget {
               fontSize: 12,
               color: AppTheme.textMedium,
               height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContributionCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  const _ContributionCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.buttonLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textMedium,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(backgroundColor: color),
+              child: Text(buttonLabel),
             ),
           ),
         ],

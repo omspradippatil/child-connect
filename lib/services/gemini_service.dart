@@ -6,6 +6,9 @@ import 'package:http/http.dart' as http;
 class GeminiService {
   GeminiService._();
 
+  static const String _indianLawContext =
+      'Indian adoption legal context (high-level): Juvenile Justice (Care and Protection of Children) Act, 2015; Adoption Regulations, 2022 (CARA); and applicable court/family court processes. The assistant must avoid definitive legal advice and suggest consulting licensed legal professionals/CARA/SARA for case-specific decisions.';
+
   static String? get _apiKey {
     final key = dotenv.env['GEMINI_API_KEY'] ?? dotenv.env['API_KEY'];
     if (key == null || key.trim().isEmpty) {
@@ -28,72 +31,76 @@ class GeminiService {
       return null;
     }
 
-    final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey',
-    );
+    try {
+      final url = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey',
+      );
 
-    final prompt = _buildPrompt(
-      userMessage: userMessage,
-      children: children,
-      programs: programs,
-      adoptionSteps: adoptionSteps,
-      missionPoints: missionPoints,
-    );
+      final prompt = _buildPrompt(
+        userMessage: userMessage,
+        children: children,
+        programs: programs,
+        adoptionSteps: adoptionSteps,
+        missionPoints: missionPoints,
+      );
 
-    final response = await http
-        .post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'contents': [
-              {
-                'parts': [
-                  {'text': prompt},
-                ],
-              },
-            ],
-            'generationConfig': {'temperature': 0.5, 'maxOutputTokens': 250},
-          }),
-        )
-        .timeout(const Duration(seconds: 12));
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt},
+                  ],
+                },
+              ],
+              'generationConfig': {'temperature': 0.3, 'maxOutputTokens': 420},
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      return null;
-    }
-
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final candidates = body['candidates'];
-    if (candidates is! List || candidates.isEmpty) {
-      return null;
-    }
-
-    final first = candidates.first;
-    if (first is! Map) {
-      return null;
-    }
-
-    final content = first['content'];
-    if (content is! Map) {
-      return null;
-    }
-
-    final parts = content['parts'];
-    if (parts is! List || parts.isEmpty) {
-      return null;
-    }
-
-    final buffer = StringBuffer();
-    for (final part in parts) {
-      if (part is Map && part['text'] is String) {
-        if (buffer.isNotEmpty) {
-          buffer.writeln();
-        }
-        buffer.write(part['text'] as String);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
       }
-    }
 
-    final text = buffer.toString().trim();
-    return text.isEmpty ? null : text;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final candidates = body['candidates'];
+      if (candidates is! List || candidates.isEmpty) {
+        return null;
+      }
+
+      final first = candidates.first;
+      if (first is! Map) {
+        return null;
+      }
+
+      final content = first['content'];
+      if (content is! Map) {
+        return null;
+      }
+
+      final parts = content['parts'];
+      if (parts is! List || parts.isEmpty) {
+        return null;
+      }
+
+      final buffer = StringBuffer();
+      for (final part in parts) {
+        if (part is Map && part['text'] is String) {
+          if (buffer.isNotEmpty) {
+            buffer.writeln();
+          }
+          buffer.write(part['text'] as String);
+        }
+      }
+
+      final text = buffer.toString().trim();
+      return text.isEmpty ? null : text;
+    } catch (_) {
+      return null;
+    }
   }
 
   static String _buildPrompt({
@@ -131,11 +138,18 @@ class GeminiService {
         )
         .join('\n');
 
-    return '''You are the Child Connect assistant for an adoption and mentoring support app.
-Answer the user's question using the app context below.
-Keep the answer practical, short, and clear.
-If the question is unrelated to Child Connect, redirect politely back to adoption, children, mentoring, programs, or support topics.
-Do not invent legal claims or sensitive personal data.
+    return '''You are the Child Connect assistant for an adoption and mentoring support app in India.
+Answer only using the app context below and Indian legal context.
+
+Rules:
+- Keep response practical, short, and clear.
+- Prioritize adoption guidance as per Indian context and mention CARA/JJ Act only at a high level.
+- Never provide definitive legal advice or guaranteed outcomes.
+- If user asks legal-procedure specifics, provide general steps and suggest consulting CARA/SARA or a licensed lawyer.
+- Never invent app data, legal citations, or personal details.
+- If query is outside Child Connect scope, politely redirect to adoption, children, mentoring, programs, or support topics.
+
+$_indianLawContext
 
 Available children:
 $childSummary
