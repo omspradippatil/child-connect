@@ -50,54 +50,32 @@ class DigiLockerService {
     return [_docAadhaar, _docPan, _docPolice];
   }
 
-  /// Complete flow: Launches login, waits for user to manually confirm, then verifies.
-  /// Used directly from the UI to encapsulate the verification logic.
-  static Future<bool> verifyUserIdentity(
-    BuildContext context, {
-    required String aadhaarNumber,
-    required String panNumber,
-  }) async {
+  /// Complete flow: Shows a verification dialog, validates inputs, then verifies.
+  static Future<bool> verifyUserIdentity(BuildContext context) async {
     try {
       if (!context.mounted) return false;
 
-      final normalizedAadhaar = aadhaarNumber.replaceAll(RegExp(r'\s+'), '');
-      final normalizedPan = panNumber.trim().toUpperCase();
-      if (!isValidAadhaar(normalizedAadhaar) || !isValidPan(normalizedPan)) {
+      final result = await _showVerificationForm(context);
+
+      if (result == null || !result.confirmed || result.code.isEmpty) {
         return false;
       }
 
-      // 2. Simulate the redirect capture using a Dialog for educational purposes.
-      // In a real app, this would be captured by app_links / uni_links package automatically.
-      final result = await _showVerificationForm(
-        context,
-        aadhaarNumber: normalizedAadhaar,
-        panNumber: normalizedPan,
-      );
-
-      if (result == null || !result.confirmed || result.code.isEmpty) {
-        return false; // User cancelled
+      if (!isValidAadhaar(result.aadhaarNumber) ||
+          !isValidPan(result.panNumber)) {
+        return false;
       }
 
-      // 3. Exchange code for token
       final token = await exchangeAuthCodeForToken(result.code);
-
-      // 4. Fetch documents
       final docs = await fetchUserDocuments(token);
 
-      // 5. Verify documents exist
       final hasRequiredDocs =
           docs.contains(_docAadhaar) &&
           docs.contains(_docPan) &&
           docs.contains(_docPolice) &&
-          isValidAadhaar(result.aadhaarNumber) &&
-          isValidPan(result.panNumber) &&
           result.policeCertificate != null;
 
-      if (hasRequiredDocs) {
-        return true;
-      }
-
-      return false;
+      return hasRequiredDocs;
     } catch (e) {
       debugPrint('DigiLocker verification failed: $e');
       return false;
@@ -105,18 +83,17 @@ class DigiLockerService {
   }
 
   static Future<_VerificationResult?> _showVerificationForm(
-    BuildContext context, {
-    required String aadhaarNumber,
-    required String panNumber,
-  }) {
+    BuildContext context,
+  ) {
+    final formKey = GlobalKey<FormState>();
+    final aadhaarController = TextEditingController();
+    final panController = TextEditingController();
     XFile? selectedCertificate;
     bool busy = false;
 
-    return showModalBottomSheet<_VerificationResult>(
+    return showDialog<_VerificationResult>(
       context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
+      barrierDismissible: false,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -127,78 +104,125 @@ class DigiLockerService {
                   source: source,
                   imageQuality: 85,
                 );
-                if (file == null) {
-                  return;
-                }
+                if (file == null) return;
                 setModalState(() => selectedCertificate = file);
               } finally {
                 setModalState(() => busy = false);
               }
             }
 
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  20,
-                  20,
-                  MediaQuery.of(context).viewInsets.bottom + 20,
-                ),
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 24,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
                   child: Form(
+                    key: formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'DigiLocker Verification',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Complete identity verification with Aadhaar number, PAN number, and Police Clearance Certificate upload.',
-                        ),
-                        const SizedBox(height: 18),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7F8FC),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFDDE3F0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'KYC Details (From Sign In)',
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              const SizedBox(height: 8),
-                              Text('Aadhaar: $aadhaarNumber'),
-                              const SizedBox(height: 4),
-                              Text('PAN: $panNumber'),
-                            ],
+                              child: const Icon(
+                                Icons.verified_user_outlined,
+                                color: Color(0xFFE65100),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'DigiLocker KYC Verification',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Complete identity verification by providing your Aadhaar, PAN, and uploading a Police Clearance Certificate.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF666666),
+                            height: 1.4,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                          controller: aadhaarController,
+                          keyboardType: TextInputType.number,
+                          maxLength: 12,
+                          decoration: const InputDecoration(
+                            labelText: 'Aadhaar Number',
+                            hintText: 'Enter 12-digit Aadhaar number',
+                            prefixIcon: Icon(Icons.badge_outlined),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Aadhaar number is required';
+                            }
+                            final clean =
+                                value.replaceAll(RegExp(r'\s+'), '');
+                            if (!isValidAadhaar(clean)) {
+                              return 'Enter a valid 12-digit Aadhaar number';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: panController,
+                          textCapitalization: TextCapitalization.characters,
+                          maxLength: 10,
+                          decoration: const InputDecoration(
+                            labelText: 'PAN Number',
+                            hintText: 'Enter PAN (e.g. ABCPE1234F)',
+                            prefixIcon: Icon(Icons.credit_card_outlined),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'PAN number is required';
+                            }
+                            if (!isValidPan(value.trim().toUpperCase())) {
+                              return 'Enter a valid PAN number';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF7F8FC),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFDDE3F0)),
+                            border: Border.all(
+                                color: const Color(0xFFDDE3F0)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 'Police Clearance Certificate',
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                                style:
+                                    TextStyle(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 6),
                               Text(
@@ -214,8 +238,8 @@ class DigiLockerService {
                                       onPressed: busy
                                           ? null
                                           : () => selectCertificate(
-                                              ImageSource.gallery,
-                                            ),
+                                                ImageSource.gallery,
+                                              ),
                                       icon: const Icon(
                                         Icons.photo_library_outlined,
                                       ),
@@ -228,8 +252,8 @@ class DigiLockerService {
                                       onPressed: busy
                                           ? null
                                           : () => selectCertificate(
-                                              ImageSource.camera,
-                                            ),
+                                                ImageSource.camera,
+                                              ),
                                       icon: const Icon(
                                         Icons.photo_camera_outlined,
                                       ),
@@ -243,14 +267,16 @@ class DigiLockerService {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: FutureBuilder<Uint8List>(
-                                    future: selectedCertificate!.readAsBytes(),
+                                    future:
+                                        selectedCertificate!.readAsBytes(),
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
                                           ConnectionState.waiting) {
                                         return const SizedBox(
                                           height: 160,
                                           child: Center(
-                                            child: CircularProgressIndicator(),
+                                            child:
+                                                CircularProgressIndicator(),
                                           ),
                                         );
                                       }
@@ -259,7 +285,8 @@ class DigiLockerService {
                                         return const SizedBox(
                                           height: 160,
                                           child: Center(
-                                            child: Text('Error loading image'),
+                                            child: Text(
+                                                'Error loading image'),
                                           ),
                                         );
                                       }
@@ -276,7 +303,7 @@ class DigiLockerService {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             Expanded(
@@ -293,13 +320,17 @@ class DigiLockerService {
                                 onPressed: busy
                                     ? null
                                     : () {
+                                        final isValid = formKey
+                                                .currentState
+                                                ?.validate() ??
+                                            false;
+                                        if (!isValid) return;
                                         if (selectedCertificate == null) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
                                             const SnackBar(
                                               content: Text(
-                                                'Upload the Police Clearance Certificate from gallery or camera.',
+                                                'Upload the Police Clearance Certificate.',
                                               ),
                                             ),
                                           );
@@ -312,8 +343,13 @@ class DigiLockerService {
                                             confirmed: true,
                                             code:
                                                 'sample_auth_code_${Random().nextInt(99999)}',
-                                            aadhaarNumber: aadhaarNumber,
-                                            panNumber: panNumber,
+                                            aadhaarNumber: aadhaarController
+                                                .text
+                                                .replaceAll(
+                                                    RegExp(r'\s+'), ''),
+                                            panNumber: panController.text
+                                                .trim()
+                                                .toUpperCase(),
                                             policeCertificate:
                                                 selectedCertificate,
                                           ),
@@ -328,7 +364,7 @@ class DigiLockerService {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : const Text('Verify And Continue'),
+                                    : const Text('Verify & Continue'),
                               ),
                             ),
                           ],
