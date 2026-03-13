@@ -33,7 +33,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _messages.add(
       ChatMessage(
         text:
-            'Hello! I am the Child Connect assistant. Ask me about adoption steps, available children, programs, support services, mentoring, or contact guidance.',
+            'Hello! I am the Child Connect assistant. I can help with adoption steps under Indian context, available children, programs, support services, mentoring, and contact guidance.',
         isUser: false,
       ),
     );
@@ -187,13 +187,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     if (hasWord('adopt') || hasWord('adoption') || hasWord('process')) {
       final steps = _adoptionStepsData
-          .take(4)
+          .take(5)
           .map(
             (step) =>
                 '${step['step']}. ${step['title']}: ${step['description']}',
           )
           .join('\n');
-      return 'Adoption process in Child Connect:\n$steps\n\nYou can open Adopt tab and submit the Adoption Application Form to begin.';
+      return 'Adoption process in Child Connect:\n$steps\n\nIndian context: adoption is generally processed under the Juvenile Justice Act and CARA Adoption Regulations. For case-specific legal advice, consult CARA/SARA or a licensed lawyer. You can open Adopt tab and submit the Adoption Application Form to begin.';
+    }
+
+    if (hasWord('law') ||
+        hasWord('legal') ||
+        hasWord('cara') ||
+        hasWord('jj act') ||
+        hasWord('court') ||
+        hasWord('document') ||
+        hasWord('eligibility')) {
+      final steps = _adoptionStepsData
+          .take(5)
+          .map((step) => '${step['step']}. ${step['title']}')
+          .join(' -> ');
+      return 'Indian adoption legal guidance (general):\n- Primary framework: Juvenile Justice (Care and Protection of Children) Act, 2015 and CARA Adoption Regulations, 2022.\n- Typical flow: $steps\n- Required records often include identity/address/income/marital and home-study documents through official process.\n\nI can only provide general guidance, not legal advice. For exact eligibility/documents/timelines in your case, confirm with CARA/SARA or a qualified adoption lawyer.';
     }
 
     if (hasWord('child') || hasWord('children') || hasWord('kid')) {
