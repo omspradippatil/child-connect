@@ -5,7 +5,14 @@ import '../utils/validators.dart';
 import 'chatbot_screen.dart';
 
 class ContactScreen extends StatefulWidget {
-  const ContactScreen({super.key});
+  final String pageTitle;
+  final String? initialMessage;
+
+  const ContactScreen({
+    super.key,
+    this.pageTitle = 'Contact Us',
+    this.initialMessage,
+  });
 
   @override
   State<ContactScreen> createState() => _ContactScreenState();
@@ -18,6 +25,15 @@ class _ContactScreenState extends State<ContactScreen> {
   final _msgCtrl = TextEditingController();
   bool _submitted = false;
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialMessage = widget.initialMessage;
+    if (initialMessage != null && initialMessage.trim().isNotEmpty) {
+      _msgCtrl.text = initialMessage.trim();
+    }
+  }
 
   Future<void> _refreshScreen() async {
     if (!mounted) {
@@ -70,7 +86,7 @@ class _ContactScreenState extends State<ContactScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgWhite,
       appBar: AppBar(
-        title: const Text('Contact Us'),
+        title: Text(widget.pageTitle),
         actions: [
           IconButton(
             tooltip: 'Refresh screen',
