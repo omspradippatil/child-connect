@@ -18,6 +18,8 @@ class _AdoptScreenState extends State<AdoptScreen> {
   bool _loading = true;
   String? _error;
   List<ChildProfile> _children = [];
+  final _searchCtrl = TextEditingController();
+  String _query = '';
 
   final List<String> _filters = ['All', 'Boys', 'Girls', 'Favorites'];
 
@@ -81,17 +83,36 @@ class _AdoptScreenState extends State<AdoptScreen> {
     return parsed == null ? const Color(0xFFFFD8B4) : Color(parsed);
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   List<ChildProfile> get _filteredChildren {
+    List<ChildProfile> base;
     switch (_filter) {
       case 'Boys':
-        return _children.where((c) => c.icon == Icons.boy).toList();
+        base = _children.where((c) => c.icon == Icons.boy).toList();
+        break;
       case 'Girls':
-        return _children.where((c) => c.icon == Icons.girl).toList();
+        base = _children.where((c) => c.icon == Icons.girl).toList();
+        break;
       case 'Favorites':
-        return _children.where((c) => c.isFavorite).toList();
+        base = _children.where((c) => c.isFavorite).toList();
+        break;
       default:
-        return _children;
+        base = _children;
     }
+    if (_query.isEmpty) return base;
+    final q = _query.toLowerCase();
+    return base
+        .where(
+          (c) =>
+              c.name.toLowerCase().contains(q) ||
+              c.location.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   @override
@@ -114,38 +135,75 @@ class _AdoptScreenState extends State<AdoptScreen> {
       ),
       body: Column(
         children: [
-          // Filter chips
+          // Search bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _filters.map((f) {
-                  final bool selected = _filter == f;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(f),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _filter = f),
-                      selectedColor: AppTheme.primaryOrange,
-                      checkmarkColor: Colors.white,
-                      backgroundColor: AppTheme.divider,
-                      labelStyle: TextStyle(
-                        color: selected ? Colors.white : AppTheme.textMedium,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        fontSize: 13,
-                      ),
-                      side: BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                  );
-                }).toList(),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _query = v.trim()),
+              decoration: InputDecoration(
+                hintText: 'Search by name or city...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _query = '');
+                        },
+                      )
+                    : null,
               ),
+            ),
+          ),
+          // Filter chips + count
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _filters.map((f) {
+                        final bool selected = _filter == f;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(f),
+                            selected: selected,
+                            onSelected: (_) => setState(() => _filter = f),
+                            selectedColor: AppTheme.primaryOrange,
+                            checkmarkColor: Colors.white,
+                            backgroundColor: AppTheme.divider,
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.textMedium,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              fontSize: 13,
+                            ),
+                            side: BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                if (!_loading && _error == null)
+                  Text(
+                    '${_filteredChildren.length} found',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textLight,
+                    ),
+                  ),
+              ],
             ),
           ),
           // Children list

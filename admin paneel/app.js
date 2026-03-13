@@ -84,7 +84,7 @@
     if (sessionToken) {
       try {
         await rpc("app_sign_out", { p_session_token: sessionToken });
-      } catch (_) {}
+      } catch (_) { }
     }
     setToken("");
     showAuth();
@@ -93,13 +93,20 @@
   async function loadOverview() {
     const data = await rpc("app_admin_dashboard_snapshot", { p_session_token: sessionToken });
     const cards = [
-      { label: "Contact Messages", value: data.contact_count || 0 },
-      { label: "Adoption Requests", value: data.adoption_count || 0 },
-      { label: "Mentor Requests", value: data.mentor_count || 0 }
+      { label: "Contact Messages", value: data.contact_count || 0, tab: "requests" },
+      { label: "Adoption Requests", value: data.adoption_count || 0, tab: "requests" },
+      { label: "Mentor Requests", value: data.mentor_count || 0, tab: "requests" },
     ];
     stats.innerHTML = cards
-      .map((card) => `<div class="stat"><div class="num">${card.value}</div><div>${escapeHtml(card.label)}</div></div>`)
+      .map((card) =>
+        `<div class="stat clickable" data-tab="${card.tab}" title="View ${card.label}">` +
+        `<div class="num">${card.value}</div><div>${escapeHtml(card.label)}</div></div>`
+      )
       .join("");
+
+    stats.querySelectorAll(".stat.clickable[data-tab]").forEach((el) => {
+      el.addEventListener("click", () => setActiveTab(el.dataset.tab));
+    });
   }
 
   function buildItem(title, subtitle, actionsHtml, badge) {
@@ -213,6 +220,7 @@
   }
 
   function childFields(row = {}) {
+    const checked = (row.is_active ?? true) ? "checked" : "";
     return `
       <input name="id" value="${escapeHtml(row.id || "")}" type="hidden" />
       <input name="name" placeholder="Name" value="${escapeHtml(row.name || "")}" required />
@@ -225,20 +233,27 @@
         <option value="other" ${(row.gender || "") === "other" ? "selected" : ""}>Other</option>
       </select>
       <input name="avatar_color_hex" placeholder="#FFD8B4" value="${escapeHtml(row.avatar_color_hex || "#FFD8B4")}" />
-      <label><input name="is_active" type="checkbox" ${(row.is_active ?? true) ? "checked" : ""}/> Active</label>
-      <input name="display_order" type="number" value="${escapeHtml(row.display_order || 0)}" />
+      <label class="toggle-label">
+        <input name="is_active" type="checkbox" class="toggle-input" ${checked} />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Active</span>
+      </label>
     `;
   }
 
   function programFields(row = {}) {
+    const checked = (row.is_active ?? true) ? "checked" : "";
     return `
       <input name="id" value="${escapeHtml(row.id || "")}" type="hidden" />
       <input name="title" placeholder="Title" value="${escapeHtml(row.title || "")}" required />
       <textarea name="description" placeholder="Description" required>${escapeHtml(row.description || "")}</textarea>
       <input name="icon_key" placeholder="school/palette/people/book/music/run" value="${escapeHtml(row.icon_key || "school")}" />
       <input name="color_hex" placeholder="#4FA8D5" value="${escapeHtml(row.color_hex || "#4FA8D5")}" />
-      <label><input name="is_active" type="checkbox" ${(row.is_active ?? true) ? "checked" : ""}/> Active</label>
-      <input name="display_order" type="number" value="${escapeHtml(row.display_order || 0)}" />
+      <label class="toggle-label">
+        <input name="is_active" type="checkbox" class="toggle-input" ${checked} />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Active</span>
+      </label>
     `;
   }
 

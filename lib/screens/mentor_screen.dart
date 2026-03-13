@@ -220,7 +220,7 @@ class _MentorScreenState extends State<MentorScreen> {
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
-            initialValue: _selectedArea,
+            value: _selectedArea,
             decoration: InputDecoration(
               labelText: 'Area of Expertise',
               filled: true,
