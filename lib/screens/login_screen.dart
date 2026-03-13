@@ -17,8 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _aadhaarCtrl = TextEditingController();
-  final _panCtrl = TextEditingController();
 
   bool _isSignUp = false;
   bool _busy = false;
@@ -29,8 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
-    _aadhaarCtrl.dispose();
-    _panCtrl.dispose();
     super.dispose();
   }
 
@@ -46,39 +42,35 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      AppUser user;
       if (_isSignUp) {
-        await AuthService.signUp(
+        user = await AuthService.signUp(
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
           fullName: _nameCtrl.text,
         );
       } else {
-        final signedInUser = await AuthService.signIn(
+        user = await AuthService.signIn(
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
           persistSession: false,
         );
-
-        if (signedInUser.role.toLowerCase() == 'user') {
-          if (!mounted) {
-            return;
-          }
-          final verified = await DigiLockerService.verifyUserIdentity(
-            context,
-            aadhaarNumber: _aadhaarCtrl.text,
-            panNumber: _panCtrl.text,
-          );
-          if (!verified) {
-            setState(() {
-              _error =
-                  'Verification requires Police Clearance Certificate, Aadhaar Card, and PAN Card.';
-            });
-            return;
-          }
-        }
-
-        await AuthService.establishSession(signedInUser);
       }
+
+      // Run DigiLocker verification for all 'user' role accounts
+      if (user.role.toLowerCase() == 'user') {
+        if (!mounted) return;
+        final verified = await DigiLockerService.verifyUserIdentity(context);
+        if (!verified) {
+          setState(() {
+            _error =
+                'Verification requires Police Clearance Certificate, Aadhaar Card, and PAN Card.';
+          });
+          return;
+        }
+      }
+
+      await AuthService.establishSession(user);
     } on PostgrestException catch (error) {
       setState(() => _error = error.message);
     } catch (error) {
@@ -137,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     _isSignUp
                         ? 'Sign up to continue your adoption journey.'
-                        : 'Sign in to continue. Aadhaar and PAN are mandatory for user verification.',
+                        : 'Sign in to continue.',
                     style: const TextStyle(
                       fontSize: 13,
                       height: 1.5,
@@ -181,81 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           validator: (value) =>
                               Validators.password(value, strict: _isSignUp),
                         ),
-                        if (!_isSignUp) ...[
-                          const SizedBox(height: 14),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7F8FC),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFDDE3F0),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'DigiLocker KYC (Mandatory)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.textDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                TextFormField(
-                                  controller: _aadhaarCtrl,
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 12,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Aadhaar Number',
-                                    hintText: 'Enter 12-digit Aadhaar number',
-                                    prefixIcon: Icon(Icons.badge_outlined),
-                                    counterText: '',
-                                  ),
-                                  validator: (value) {
-                                    if (_isSignUp) {
-                                      return null;
-                                    }
-                                    if (!DigiLockerService.isValidAadhaar(
-                                      value ?? '',
-                                    )) {
-                                      return 'Enter a valid 12-digit Aadhaar number';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                TextFormField(
-                                  controller: _panCtrl,
-                                  textCapitalization:
-                                      TextCapitalization.characters,
-                                  maxLength: 10,
-                                  decoration: const InputDecoration(
-                                    labelText: 'PAN Number',
-                                    hintText: 'Enter PAN number',
-                                    prefixIcon: Icon(
-                                      Icons.credit_card_outlined,
-                                    ),
-                                    counterText: '',
-                                  ),
-                                  validator: (value) {
-                                    if (_isSignUp) {
-                                      return null;
-                                    }
-                                    if (!DigiLockerService.isValidPan(
-                                      value ?? '',
-                                    )) {
-                                      return 'Enter a valid PAN number';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 12),
                         if (_error != null)
                           Container(
@@ -299,10 +216,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   setState(() {
                                     _isSignUp = !_isSignUp;
                                     _error = null;
-                                    if (_isSignUp) {
-                                      _aadhaarCtrl.clear();
-                                      _panCtrl.clear();
-                                    }
                                   });
                                 },
                           child: Text(

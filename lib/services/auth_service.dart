@@ -75,7 +75,7 @@ class AuthService {
     }
   }
 
-  static Future<void> signUp({
+  static Future<AppUser> signUp({
     required String email,
     required String password,
     String? fullName,
@@ -94,7 +94,7 @@ class AuthService {
     if (user == null) {
       throw Exception('Sign up failed. Please try again.');
     }
-    await _setSession(user);
+    return user;
   }
 
   static Future<AppUser> signIn({
