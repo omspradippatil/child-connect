@@ -49,3 +49,4 @@ app.*.map.json
 
 # Local reference static website folder
 /Refrence html website/
+env
