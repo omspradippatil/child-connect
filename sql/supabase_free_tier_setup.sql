@@ -31,6 +31,42 @@ create table if not exists public.app_users (
 create unique index if not exists ux_app_users_email_lower
 on public.app_users (lower(email));
 
+-- Session table for token-based login state.
+create table if not exists public.app_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_app_sessions_user_id on public.app_sessions(user_id);
+create index if not exists idx_app_sessions_expires_at on public.app_sessions(expires_at);
+
+-- Internal helper: creates and stores a session token.
+create or replace function public.app_create_session(
+  p_user_id uuid
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token text;
+  v_token_hash text;
+begin
+  v_token := encode(extensions.gen_random_bytes(32), 'hex');
+  v_token_hash := encode(extensions.digest(v_token, 'sha256'), 'hex');
+
+  insert into public.app_sessions (user_id, token_hash, expires_at)
+  values (p_user_id, v_token_hash, now() + interval '30 days');
+
+  return v_token;
+end;
+$$;
+
 -- Sign-up function.
 create or replace function public.app_sign_up(
   p_full_name text,
@@ -45,6 +81,7 @@ as $$
 declare
   v_user public.app_users;
   v_email text;
+  v_session_token text;
 begin
   v_email := lower(trim(coalesce(p_email, '')));
 
@@ -72,11 +109,16 @@ begin
   )
   returning * into v_user;
 
+  v_session_token := public.app_create_session(v_user.id);
+
   return jsonb_build_object(
-    'id', v_user.id,
-    'full_name', v_user.full_name,
-    'email', v_user.email,
-    'role', v_user.role
+    'session_token', v_session_token,
+    'user', jsonb_build_object(
+      'id', v_user.id,
+      'full_name', v_user.full_name,
+      'email', v_user.email,
+      'role', v_user.role
+    )
   );
 end;
 $$;
@@ -94,6 +136,7 @@ as $$
 declare
   v_user public.app_users;
   v_email text;
+  v_session_token text;
 begin
   v_email := lower(trim(coalesce(p_email, '')));
 
@@ -111,6 +154,56 @@ begin
     raise exception 'Invalid email or password';
   end if;
 
+  delete from public.app_sessions s
+  where s.user_id = v_user.id and (s.expires_at < now() or s.revoked_at is not null);
+
+  v_session_token := public.app_create_session(v_user.id);
+
+  return jsonb_build_object(
+    'session_token', v_session_token,
+    'user', jsonb_build_object(
+      'id', v_user.id,
+      'full_name', v_user.full_name,
+      'email', v_user.email,
+      'role', v_user.role
+    )
+  );
+end;
+$$;
+
+-- Validate session token and return user profile.
+create or replace function public.app_get_session_user(
+  p_session_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token_hash text;
+  v_user public.app_users;
+begin
+  if coalesce(p_session_token, '') = '' then
+    raise exception 'Missing session token';
+  end if;
+
+  v_token_hash := encode(extensions.digest(p_session_token, 'sha256'), 'hex');
+
+  select u.*
+  into v_user
+  from public.app_sessions s
+  join public.app_users u on u.id = s.user_id
+  where s.token_hash = v_token_hash
+    and s.revoked_at is null
+    and s.expires_at > now()
+    and u.is_active = true
+  limit 1;
+
+  if not found then
+    raise exception 'Session invalid or expired';
+  end if;
+
   return jsonb_build_object(
     'id', v_user.id,
     'full_name', v_user.full_name,
@@ -120,9 +213,33 @@ begin
 end;
 $$;
 
+-- Revoke session token.
+create or replace function public.app_sign_out(
+  p_session_token text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token_hash text;
+begin
+  if coalesce(p_session_token, '') = '' then
+    return;
+  end if;
+
+  v_token_hash := encode(extensions.digest(p_session_token, 'sha256'), 'hex');
+
+  update public.app_sessions
+  set revoked_at = now()
+  where token_hash = v_token_hash and revoked_at is null;
+end;
+$$;
+
 -- Admin dashboard snapshot function.
 create or replace function public.app_admin_dashboard_snapshot(
-  p_user_id uuid
+  p_session_token text
 )
 returns jsonb
 language plpgsql
@@ -130,16 +247,28 @@ security definer
 set search_path = public
 as $$
 declare
-  v_is_admin boolean;
+  v_token_hash text;
+  v_user_id uuid;
   v_result jsonb;
 begin
-  select exists(
-    select 1
-    from public.app_users u
-    where u.id = p_user_id and u.role = 'admin' and u.is_active = true
-  ) into v_is_admin;
+  if coalesce(p_session_token, '') = '' then
+    raise exception 'Not authorized';
+  end if;
 
-  if not v_is_admin then
+  v_token_hash := encode(extensions.digest(p_session_token, 'sha256'), 'hex');
+
+  select u.id
+  into v_user_id
+  from public.app_sessions s
+  join public.app_users u on u.id = s.user_id
+  where s.token_hash = v_token_hash
+    and s.revoked_at is null
+    and s.expires_at > now()
+    and u.role = 'admin'
+    and u.is_active = true
+  limit 1;
+
+  if v_user_id is null then
     raise exception 'Not authorized';
   end if;
 
@@ -179,11 +308,15 @@ $$;
 
 revoke all on function public.app_sign_up(text, text, text) from public;
 revoke all on function public.app_sign_in(text, text) from public;
-revoke all on function public.app_admin_dashboard_snapshot(uuid) from public;
+revoke all on function public.app_get_session_user(text) from public;
+revoke all on function public.app_sign_out(text) from public;
+revoke all on function public.app_admin_dashboard_snapshot(text) from public;
 
 grant execute on function public.app_sign_up(text, text, text) to anon, authenticated, service_role;
 grant execute on function public.app_sign_in(text, text) to anon, authenticated, service_role;
-grant execute on function public.app_admin_dashboard_snapshot(uuid) to anon, authenticated, service_role;
+grant execute on function public.app_get_session_user(text) to anon, authenticated, service_role;
+grant execute on function public.app_sign_out(text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_dashboard_snapshot(text) to anon, authenticated, service_role;
 
 -- Contact form submissions.
 create table if not exists public.contact_messages (
@@ -259,6 +392,7 @@ for each row execute function public.set_updated_at();
 
 -- RLS.
 alter table public.app_users enable row level security;
+alter table public.app_sessions enable row level security;
 alter table public.contact_messages enable row level security;
 alter table public.adoption_applications enable row level security;
 alter table public.mentor_applications enable row level security;
@@ -289,6 +423,14 @@ with check (true);
 drop policy if exists app_users_service_all on public.app_users;
 create policy app_users_service_all
 on public.app_users
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists app_sessions_service_all on public.app_sessions;
+create policy app_sessions_service_all
+on public.app_sessions
 for all
 to service_role
 using (true)

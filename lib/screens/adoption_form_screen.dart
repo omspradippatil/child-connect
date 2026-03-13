@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_data.dart';
+import '../utils/validators.dart';
 
 class AdoptionFormScreen extends StatefulWidget {
   final ChildProfile child;
@@ -193,8 +194,7 @@ class _AdoptionFormScreenState extends State<AdoptionFormScreen> {
               labelText: 'Full Name',
               prefixIcon: Icon(Icons.person_outline, size: 20),
             ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+            validator: (v) => Validators.name(v, fieldName: 'Full name'),
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -204,11 +204,7 @@ class _AdoptionFormScreenState extends State<AdoptionFormScreen> {
               labelText: 'Email Address',
               prefixIcon: Icon(Icons.email_outlined, size: 20),
             ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Email is required';
-              if (!v.contains('@')) return 'Enter a valid email';
-              return null;
-            },
+            validator: Validators.email,
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -220,9 +216,8 @@ class _AdoptionFormScreenState extends State<AdoptionFormScreen> {
                   'Tell us a bit about yourself and why you wish to adopt...',
               alignLabelWithHint: true,
             ),
-            validator: (v) => (v == null || v.trim().length < 20)
-                ? 'Please write at least 20 characters'
-                : null,
+            validator: (v) =>
+                Validators.minLength(v, 20, 'Reason for adoption'),
           ),
           const SizedBox(height: 28),
           SizedBox(

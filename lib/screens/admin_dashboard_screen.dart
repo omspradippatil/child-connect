@@ -41,7 +41,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       final response = await Supabase.instance.client.rpc(
         'app_admin_dashboard_snapshot',
-        params: {'p_user_id': user.id},
+        params: {'p_session_token': user.sessionToken},
       );
 
       final data = Map<String, dynamic>.from(response as Map);

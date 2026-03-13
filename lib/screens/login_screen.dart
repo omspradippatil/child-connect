@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -184,10 +185,10 @@ class _LoginScreenState extends State<LoginScreen>
                               if (!_isSignUp || _isAdminTab) {
                                 return null;
                               }
-                              if (value == null || value.trim().length < 2) {
-                                return 'Enter your full name';
-                              }
-                              return null;
+                              return Validators.name(
+                                value,
+                                fieldName: 'Full name',
+                              );
                             },
                           ),
                           const SizedBox(height: 14),
@@ -200,13 +201,7 @@ class _LoginScreenState extends State<LoginScreen>
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Enter a valid email';
-                            }
-                            return null;
+                            return Validators.email(value);
                           },
                         ),
                         const SizedBox(height: 14),
@@ -218,10 +213,10 @@ class _LoginScreenState extends State<LoginScreen>
                             prefixIcon: Icon(Icons.lock_outline),
                           ),
                           validator: (value) {
-                            if (value == null || value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
+                            return Validators.password(
+                              value,
+                              strict: _isSignUp,
+                            );
                           },
                         ),
                         const SizedBox(height: 12),
