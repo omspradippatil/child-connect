@@ -18,7 +18,8 @@
   const childrenList  = document.getElementById("childrenList");
   const programsList  = document.getElementById("programsList");
   const adoptionList  = document.getElementById("adoptionList");
-  const mentorList    = document.getElementById("mentorList");
+  const volunteerList = document.getElementById("volunteerList");
+  const donorList     = document.getElementById("donorList");
   const contactList   = document.getElementById("contactList");
   const addChildBtn   = document.getElementById("addChildBtn");
   const addProgramBtn = document.getElementById("addProgramBtn");
@@ -39,6 +40,7 @@
   const programSearch = document.getElementById("programSearch");
   const activityFeed  = document.getElementById("activityFeed");
   const quickStats    = document.getElementById("quickStats");
+  const requestSummary = document.getElementById("requestSummary");
 
   const navButtons = Array.from(document.querySelectorAll(".nav-btn[data-tab]"));
   const tabs       = Array.from(document.querySelectorAll(".tab"));
@@ -48,7 +50,7 @@
   let activeThreadId = "";
   let allChildren   = [];
   let allPrograms   = [];
-  let allRequests   = { adoptions: [], mentors: [], contacts: [] };
+  let allRequests   = { adoptions: [], mentors: [], volunteers: [], donors: [], contacts: [] };
   let activeRequestFilter = "all";
 
   // ═══════════════════════════════════
@@ -138,6 +140,16 @@
     return colors[Math.abs(h)];
   }
 
+  const donorKeywords = [
+    "donor", "donate", "donation", "contribute", "contribution",
+    "sponsor", "sponsorship", "fund", "funding", "support"
+  ];
+
+  function isDonorContact(row) {
+    const blob = `${row?.message || ""} ${row?.subject || ""} ${row?._notes || ""}`.toLowerCase();
+    return donorKeywords.some((key) => blob.includes(key));
+  }
+
   // ═══════════════════════════════════
   //  CSV EXPORT
   // ═══════════════════════════════════
@@ -168,7 +180,8 @@
   document.getElementById("exportRequestsBtn")?.addEventListener("click", () => {
     const all = [
       ...allRequests.adoptions.map(r => ({ ...r, _type: "adoption" })),
-      ...allRequests.mentors.map(r => ({ ...r, _type: "mentor" })),
+      ...allRequests.volunteers.map(r => ({ ...r, _type: "volunteer" })),
+      ...allRequests.donors.map(r => ({ ...r, _type: "donor" })),
       ...allRequests.contacts.map(r => ({ ...r, _type: "contact" }))
     ];
     if (!all.length) { showToast("No requests to export", "warn"); return; }
@@ -185,7 +198,8 @@
       { metric: "Active Children", value: allChildren.filter(c => c.is_active).length },
       { metric: "Programs", value: allPrograms.length },
       { metric: "Adoption Requests", value: allRequests.adoptions.length },
-      { metric: "Mentor Requests", value: allRequests.mentors.length },
+      { metric: "Volunteer Applications", value: allRequests.volunteers.length },
+      { metric: "Donor Leads", value: allRequests.donors.length },
       { metric: "Contact Messages", value: allRequests.contacts.length },
     ];
     downloadCSV(toCSV(rows, [{ label: "Metric", key: "metric" }, { label: "Value", key: "value" }]), "overview.csv");
@@ -271,15 +285,24 @@
   async function loadOverview() {
     const data = await rpc("app_admin_dashboard_snapshot", { p_session_token: sessionToken });
 
+    const pendingAdoptions = (allRequests.adoptions || []).filter(r =>
+      r.status === "submitted" || r.status === "shortlisted" || r.status === "in_review"
+    ).length;
+    const pendingVolunteers = (allRequests.volunteers || []).filter(r =>
+      r.status === "submitted" || r.status === "screening" || r.status === "in_review"
+    ).length;
+    const pendingLeads = (allRequests.donors || []).filter(r =>
+      r.status === "new" || r.status === "in_review"
+    ).length;
+
     const cards = [
-      { label: "Contact Messages", value: data.contact_count  || 0, tab: "requests", icon: "✉️",  cls: "stat-orange" },
-      { label: "Adoption Requests",value: data.adoption_count || 0, tab: "requests", icon: "🏠", cls: "stat-blue"   },
-      { label: "Mentor Requests",  value: data.mentor_count   || 0, tab: "requests", icon: "🤝", cls: "stat-green"  },
+      { label: "Adoption Requests", value: allRequests.adoptions.length, tab: "requests", icon: "🏠", cls: "stat-blue"   },
+      { label: "Volunteer Applications", value: allRequests.volunteers.length, tab: "requests", icon: "🤝", cls: "stat-green" },
+      { label: "Donor Leads", value: allRequests.donors.length, tab: "requests", icon: "💝", cls: "stat-purple" },
+      { label: "Contact Messages", value: allRequests.contacts.length, tab: "requests", icon: "✉️", cls: "stat-orange" },
       { label: "Children",         value: allChildren.length,       tab: "children", icon: "👧", cls: "stat-purple" },
       { label: "Programs",         value: allPrograms.length,       tab: "programs", icon: "📚", cls: "stat-teal"   },
-      { label: "Pending Reviews",
-        value: (data.adoption_count || 0) + (data.mentor_count || 0) + (data.contact_count || 0),
-        tab: "requests", icon: "⏳", cls: "stat-red" }
+      { label: "Pending Reviews", value: pendingAdoptions + pendingVolunteers + pendingLeads, tab: "requests", icon: "⏳", cls: "stat-red" }
     ];
 
     stats.innerHTML = cards.map(card => `
@@ -306,9 +329,10 @@
         items.push({ text: `${type}: <strong>${escapeHtml(r.full_name || r.name || "")}</strong> — ${escapeHtml(r.status || "")}`, icon, color: colorClass, ts: r.created_at || r.updated_at });
       });
     };
-    addItems(allRequests.adoptions, "Adoption",        "🏠", "orange");
-    addItems(allRequests.mentors,   "Mentor Request",  "🤝", "blue");
-    addItems(allRequests.contacts,  "Contact Message", "✉️", "green");
+    addItems(allRequests.adoptions,  "Adoption",                "🏠", "orange");
+    addItems(allRequests.volunteers, "Volunteer Application",    "🤝", "blue");
+    addItems(allRequests.donors,     "Donor Lead",              "💝", "red");
+    addItems(allRequests.contacts,   "Contact Message",         "✉️", "green");
 
     items.sort((a, b) => new Date(b.ts) - new Date(a.ts));
 
@@ -334,7 +358,8 @@
       <div class="qs-item"><span>Active Children</span><span class="qs-val" style="color:var(--success)">${active}</span></div>
       <div class="qs-item"><span>Active Programs</span><span class="qs-val" style="color:var(--info)">${activeP}</span></div>
       <div class="qs-item"><span>Adoption Pending</span><span class="qs-val" style="color:var(--warn)">${(allRequests.adoptions || []).filter(r => r.status === "submitted" || r.status === "shortlisted").length}</span></div>
-      <div class="qs-item"><span>Mentor Pending</span><span class="qs-val" style="color:var(--warn)">${(allRequests.mentors || []).filter(r => r.status === "submitted" || r.status === "screening").length}</span></div>
+      <div class="qs-item"><span>Volunteer Pending</span><span class="qs-val" style="color:var(--warn)">${(allRequests.volunteers || []).filter(r => r.status === "submitted" || r.status === "screening").length}</span></div>
+      <div class="qs-item"><span>Donor Leads</span><span class="qs-val" style="color:var(--accent)">${allRequests.donors.length}</span></div>
     `;
   }
 
@@ -413,20 +438,38 @@
   // ═══════════════════════════════════
   async function loadRequests() {
     const data = await rpc("app_admin_list_requests", { p_session_token: sessionToken });
-    allRequests.adoptions = data.adoptions || [];
-    allRequests.mentors   = data.mentors   || [];
-    allRequests.contacts  = data.contacts  || [];
+    const adoptions = data.adoptions || [];
+    const mentors = data.mentors || [];
+    const contacts = data.contacts || [];
+
+    allRequests.adoptions = adoptions;
+    allRequests.mentors = mentors;
+    allRequests.volunteers = mentors;
+    allRequests.donors = contacts.filter(isDonorContact);
+    allRequests.contacts = contacts.filter((row) => !isDonorContact(row));
+
     applyRequestFilter(activeRequestFilter);
   }
 
   function applyRequestFilter(filter) {
     activeRequestFilter = filter;
+
+    if (requestSummary) {
+      requestSummary.innerHTML = `
+        <div class="request-chip"><span>🏠 Adoption</span><strong>${allRequests.adoptions.length}</strong></div>
+        <div class="request-chip"><span>🤝 Volunteer</span><strong>${allRequests.volunteers.length}</strong></div>
+        <div class="request-chip"><span>💝 Donor Leads</span><strong>${allRequests.donors.length}</strong></div>
+        <div class="request-chip"><span>✉️ Contact</span><strong>${allRequests.contacts.length}</strong></div>
+      `;
+    }
+
     const filterFn = r => filter === "all" || r.status === filter ||
       (filter === "pending" && (r.status === "submitted" || r.status === "screening" || r.status === "in_review" || r.status === "new"));
 
     renderRequestList(adoptionList, allRequests.adoptions.filter(filterFn), "adoption", ["submitted","shortlisted","approved","rejected"]);
-    renderRequestList(mentorList,   allRequests.mentors.filter(filterFn),   "mentor",   ["submitted","screening","approved","rejected"]);
-    renderRequestList(contactList,  allRequests.contacts.filter(filterFn),  "contact",  ["new","in_review","resolved"]);
+    renderRequestList(volunteerList, allRequests.volunteers.filter(filterFn), "volunteer", ["submitted","screening","approved","rejected"], "mentor");
+    renderRequestList(donorList, allRequests.donors.filter(filterFn), "donor", ["new","in_review","resolved"], "contact");
+    renderRequestList(contactList, allRequests.contacts.filter(filterFn), "contact", ["new","in_review","resolved"]);
   }
 
   document.getElementById("requestFilterTabs")?.querySelectorAll(".filter-tab").forEach(btn => {
@@ -437,7 +480,11 @@
     });
   });
 
-  function renderRequestList(container, rows, type, statuses) {
+  function renderRequestList(container, rows, type, statuses, requestType = type) {
+    if (!container) {
+      return;
+    }
+
     if (!rows.length) {
       container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-state-icon">📭</div>No ${type} requests</div>`;
       return;
@@ -454,8 +501,8 @@
         .join("");
 
       const actions = `
-        <select data-request-id="${row.id}" data-request-type="${type}">${options}</select>
-        <button data-save-request="${row.id}" data-request-type="${type}" class="ghost">💾 Save</button>
+        <select data-request-id="${row.id}" data-request-type="${requestType}">${options}</select>
+        <button data-save-request="${row.id}" data-request-type="${requestType}" class="ghost">💾 Save</button>
         <button class="expand-btn" data-expand="${detailId}">🔍 Details</button>
       `;
       const detail = `
@@ -921,7 +968,8 @@
     }
     // Load content first so counts are available for overview
     await loadContent();
-    await Promise.all([loadOverview(), loadRequests(), loadTeamUsers(), loadChatThreads()]);
+    await loadRequests();
+    await Promise.all([loadOverview(), loadTeamUsers(), loadChatThreads()]);
   }
 
   // ═══════════════════════════════════

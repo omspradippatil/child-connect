@@ -52,13 +52,27 @@ class DigiLockerService {
 
   /// Complete flow: Launches login, waits for user to manually confirm, then verifies.
   /// Used directly from the UI to encapsulate the verification logic.
-  static Future<bool> verifyUserIdentity(BuildContext context) async {
+  static Future<bool> verifyUserIdentity(
+    BuildContext context, {
+    required String aadhaarNumber,
+    required String panNumber,
+  }) async {
     try {
       if (!context.mounted) return false;
 
+      final normalizedAadhaar = aadhaarNumber.replaceAll(RegExp(r'\s+'), '');
+      final normalizedPan = panNumber.trim().toUpperCase();
+      if (!isValidAadhaar(normalizedAadhaar) || !isValidPan(normalizedPan)) {
+        return false;
+      }
+
       // 2. Simulate the redirect capture using a Dialog for educational purposes.
       // In a real app, this would be captured by app_links / uni_links package automatically.
-      final result = await _showVerificationForm(context);
+      final result = await _showVerificationForm(
+        context,
+        aadhaarNumber: normalizedAadhaar,
+        panNumber: normalizedPan,
+      );
 
       if (result == null || !result.confirmed || result.code.isEmpty) {
         return false; // User cancelled
@@ -75,8 +89,8 @@ class DigiLockerService {
           docs.contains(_docAadhaar) &&
           docs.contains(_docPan) &&
           docs.contains(_docPolice) &&
-          _isValidAadhaar(result.aadhaarNumber) &&
-          _isValidPan(result.panNumber) &&
+          isValidAadhaar(result.aadhaarNumber) &&
+          isValidPan(result.panNumber) &&
           result.policeCertificate != null;
 
       if (hasRequiredDocs) {
@@ -91,11 +105,10 @@ class DigiLockerService {
   }
 
   static Future<_VerificationResult?> _showVerificationForm(
-    BuildContext context,
-  ) {
-    final formKey = GlobalKey<FormState>();
-    final aadhaarController = TextEditingController();
-    final panController = TextEditingController();
+    BuildContext context, {
+    required String aadhaarNumber,
+    required String panNumber,
+  }) {
     XFile? selectedCertificate;
     bool busy = false;
 
@@ -133,7 +146,6 @@ class DigiLockerService {
                 ),
                 child: SingleChildScrollView(
                   child: Form(
-                    key: formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,38 +162,27 @@ class DigiLockerService {
                           'Complete identity verification with Aadhaar number, PAN number, and Police Clearance Certificate upload.',
                         ),
                         const SizedBox(height: 18),
-                        TextFormField(
-                          controller: aadhaarController,
-                          keyboardType: TextInputType.number,
-                          maxLength: 12,
-                          decoration: const InputDecoration(
-                            labelText: 'Aadhaar Number',
-                            hintText: 'Enter 12-digit Aadhaar number',
-                            prefixIcon: Icon(Icons.badge_outlined),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F8FC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFDDE3F0)),
                           ),
-                          validator: (value) {
-                            if (!_isValidAadhaar(value ?? '')) {
-                              return 'Enter a valid 12-digit Aadhaar number';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: panController,
-                          textCapitalization: TextCapitalization.characters,
-                          maxLength: 10,
-                          decoration: const InputDecoration(
-                            labelText: 'PAN Number',
-                            hintText: 'Enter PAN number',
-                            prefixIcon: Icon(Icons.credit_card_outlined),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'KYC Details (From Sign In)',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Aadhaar: $aadhaarNumber'),
+                              const SizedBox(height: 4),
+                              Text('PAN: $panNumber'),
+                            ],
                           ),
-                          validator: (value) {
-                            if (!_isValidPan(value ?? '')) {
-                              return 'Enter a valid PAN number';
-                            }
-                            return null;
-                          },
                         ),
                         const SizedBox(height: 12),
                         Container(
@@ -292,12 +293,6 @@ class DigiLockerService {
                                 onPressed: busy
                                     ? null
                                     : () {
-                                        final isValid =
-                                            formKey.currentState?.validate() ??
-                                            false;
-                                        if (!isValid) {
-                                          return;
-                                        }
                                         if (selectedCertificate == null) {
                                           ScaffoldMessenger.of(
                                             context,
@@ -317,12 +312,8 @@ class DigiLockerService {
                                             confirmed: true,
                                             code:
                                                 'sample_auth_code_${Random().nextInt(99999)}',
-                                            aadhaarNumber: aadhaarController
-                                                .text
-                                                .trim(),
-                                            panNumber: panController.text
-                                                .trim()
-                                                .toUpperCase(),
+                                            aadhaarNumber: aadhaarNumber,
+                                            panNumber: panNumber,
                                             policeCertificate:
                                                 selectedCertificate,
                                           ),
@@ -363,6 +354,10 @@ class DigiLockerService {
     final normalized = value.trim().toUpperCase();
     return RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(normalized);
   }
+
+  static bool isValidAadhaar(String value) => _isValidAadhaar(value);
+
+  static bool isValidPan(String value) => _isValidPan(value);
 }
 
 class _VerificationResult {

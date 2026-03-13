@@ -18,6 +18,9 @@ For direct static HTML usage, `config.js` is the runtime config file read by bro
 This admin panel controls:
 - children profiles
 - program catalog
-- contact/adoption/mentor request statuses
+- adoption request statuses
+- volunteer application queue
+- donor lead queue (auto-tagged from contact messages)
+- general contact message statuses
 
 The Flutter app reads the same shared database via RPC functions.

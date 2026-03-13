@@ -305,6 +305,32 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
+
+.request-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.request-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.request-chip strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+}
 .filter-tab {
   background: var(--surface);
   color: var(--text-muted);

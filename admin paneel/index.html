@@ -137,9 +137,10 @@
       <!-- REQUESTS TAB -->
       <section id="requests" class="tab">
         <div class="page-header">
-          <span class="page-title">Requests</span>
+          <span class="page-title">Requests & Leads</span>
           <button class="export-btn" id="exportRequestsBtn">⬇ Export CSV</button>
         </div>
+        <div id="requestSummary" class="request-summary"></div>
         <div class="filter-tabs" id="requestFilterTabs">
           <button class="filter-tab active" data-filter="all">All</button>
           <button class="filter-tab" data-filter="submitted">Submitted</button>
@@ -153,8 +154,12 @@
             <div id="adoptionList" class="list"></div>
           </div>
           <div>
-            <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">🤝 Mentor</h4>
-            <div id="mentorList" class="list"></div>
+            <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">🤝 Volunteer Sessions</h4>
+            <div id="volunteerList" class="list"></div>
+          </div>
+          <div>
+            <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">💝 Donor Leads</h4>
+            <div id="donorList" class="list"></div>
           </div>
           <div>
             <h4 style="margin-bottom:10px;font-size:14px;color:var(--text-muted)">✉️ Contact</h4>
