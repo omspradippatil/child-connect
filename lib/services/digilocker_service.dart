@@ -354,14 +354,89 @@ class DigiLockerService {
     );
   }
 
+  /// Validates Aadhaar number using the Verhoeff checksum algorithm.
+  /// This is the same algorithm UIDAI uses to generate valid Aadhaar numbers.
+  /// A random 12-digit number like "123456789876" will fail this check.
   static bool _isValidAadhaar(String value) {
     final normalized = value.replaceAll(RegExp(r'\s+'), '');
-    return RegExp(r'^\d{12}$').hasMatch(normalized);
+
+    // Must be exactly 12 digits
+    if (!RegExp(r'^\d{12}$').hasMatch(normalized)) return false;
+
+    // Must not start with 0 or 1 (UIDAI rule)
+    if (normalized.startsWith('0') || normalized.startsWith('1')) return false;
+
+    // Must not be all same digits (e.g. 222222222222)
+    if (RegExp(r'^(\d)\1{11}$').hasMatch(normalized)) return false;
+
+    // Verhoeff checksum validation
+    // Multiplication table
+    const d = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+      [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+      [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+      [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+      [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+      [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+      [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+      [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+      [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+    ];
+
+    // Permutation table
+    const p = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+      [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+      [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+      [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+      [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+      [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+      [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+    ];
+
+    int c = 0;
+    final digits = normalized.split('').reversed.toList();
+    for (int i = 0; i < digits.length; i++) {
+      c = d[c][p[i % 8][int.parse(digits[i])]];
+    }
+    return c == 0;
   }
 
+  /// Validates PAN number with strict format and logical checks.
+  /// PAN format: ABCDE1234F
+  /// - Chars 1-3: Alphabetic (AAA-ZZZ)
+  /// - Char 4: Holder type (C, P, H, F, A, T, B, L, J, G — valid types only)
+  /// - Char 5: First letter of surname (A-Z)
+  /// - Chars 6-9: Sequential number (0001-9999)
+  /// - Char 10: Alphabetic check digit
   static bool _isValidPan(String value) {
     final normalized = value.trim().toUpperCase();
-    return RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(normalized);
+
+    // Basic format: 5 letters, 4 digits, 1 letter
+    if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(normalized)) return false;
+
+    // 4th character must be a valid holder type
+    const validHolderTypes = {
+      'A', // Association of Persons
+      'B', // Body of Individuals
+      'C', // Company
+      'F', // Firm
+      'G', // Government
+      'H', // Hindu Undivided Family
+      'J', // Artificial Juridical Person
+      'L', // Local Authority
+      'P', // Individual/Person
+      'T', // Trust
+    };
+    if (!validHolderTypes.contains(normalized[3])) return false;
+
+    // The numeric part must not be 0000
+    final numericPart = normalized.substring(5, 9);
+    if (numericPart == '0000') return false;
+
+    return true;
   }
 }
 
