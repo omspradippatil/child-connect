@@ -141,7 +141,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   String _buildResponse(String rawQuery) {
     final query = rawQuery.trim().toLowerCase();
-    final hasWord = (String word) => query.contains(word);
+    bool hasWord(String word) => query.contains(word);
 
     if (hasWord('adopt') || hasWord('adoption') || hasWord('process')) {
       final steps = _adoptionStepsData
@@ -270,7 +270,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, -4),
           ),
