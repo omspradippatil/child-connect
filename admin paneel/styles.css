@@ -670,12 +670,39 @@ dialog {
 dialog::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(3px); }
 
 .dialog-inner { padding: 28px; display: grid; gap: 12px; }
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 2px;
+}
 .dialog-title {
   font-size: 17px;
   font-weight: 700;
-  margin-bottom: 4px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dialog-close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+}
+
+.dialog-close-btn:hover {
+  background: var(--border);
+  color: var(--text);
+  box-shadow: none;
 }
 
 /* ── Toast Notifications ── */

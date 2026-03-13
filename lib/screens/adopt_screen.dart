@@ -52,7 +52,7 @@ class _AdoptScreenState extends State<AdoptScreen> {
           location: (row['location'] ?? '').toString(),
           story: (row['story'] ?? '').toString(),
           interests: (row['interests'] ?? '').toString(),
-          imageUrl: (row['image_url'] ?? '').toString(),
+          imageUrl: _resolveChildImageUrl((row['image_url'] ?? '').toString()),
           icon: gender == 'boy'
               ? Icons.boy
               : gender == 'girl'
@@ -74,6 +74,19 @@ class _AdoptScreenState extends State<AdoptScreen> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  String _resolveChildImageUrl(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) {
+      return '';
+    }
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+
+    final storage = Supabase.instance.client.storage.from('children-photos');
+    return storage.getPublicUrl(value);
   }
 
   Color _parseColor(String hex) {

@@ -140,6 +140,22 @@
     return colors[Math.abs(h)];
   }
 
+  function resolveChildImageUrl(rawValue) {
+    const raw = String(rawValue || "").trim();
+    if (!raw) return "";
+
+    if (/^https?:\/\//i.test(raw)) {
+      return raw;
+    }
+
+    if (raw.startsWith("/storage/v1/object/")) {
+      return `${cfg.supabaseUrl}${raw}`;
+    }
+
+    const { data } = supabase.storage.from("children-photos").getPublicUrl(raw);
+    return data?.publicUrl || "";
+  }
+
   const donorKeywords = [
     "donor", "donate", "donation", "contribute", "contribution",
     "sponsor", "sponsorship", "fund", "funding", "support"
@@ -372,8 +388,9 @@
       return;
     }
     childrenList.innerHTML = list.map(row => {
-      const img = row.image_url
-        ? `<img class="child-card-img" src="${escapeHtml(row.image_url)}" alt="${escapeHtml(row.name)}" loading="lazy" />`
+      const resolvedImageUrl = resolveChildImageUrl(row.image_url);
+      const img = resolvedImageUrl
+        ? `<img class="child-card-img" src="${escapeHtml(resolvedImageUrl)}" alt="${escapeHtml(row.name)}" loading="lazy" />`
         : `<div class="child-avatar" style="background:${escapeHtml(row.avatar_color_hex || "#FFD8B4")}">👦</div>`;
       return `
         <div class="child-card">
@@ -660,11 +677,18 @@
   //  DIALOG / FORMS
   // ═══════════════════════════════════
   function openDialog(fields, onSubmit, title) {
-    editorForm.innerHTML = `<div class="dialog-title">${escapeHtml(title)}</div>` + fields + `
+    editorForm.innerHTML = `
+      <div class="dialog-head">
+        <div class="dialog-title">${escapeHtml(title)}</div>
+        <button type="button" class="dialog-close-btn" data-dialog-close aria-label="Close dialog">✕</button>
+      </div>
+    ` + fields + `
       <div class="item-actions" style="justify-content:flex-end;margin-top:8px">
         <button value="cancel" formmethod="dialog" class="ghost">Cancel</button>
         <button id="saveEditorBtn" type="submit">Save Changes</button>
       </div>`;
+
+    wireDialogCloseControls();
 
     editorForm.onsubmit = async (e) => {
       e.preventDefault();
@@ -686,9 +710,16 @@
     setTimeout(() => wirePhotoUpload(), 0);
   }
 
+  function wireDialogCloseControls() {
+    editorForm.querySelectorAll("[data-dialog-close]").forEach((btn) => {
+      btn.addEventListener("click", () => editorDialog.close());
+    });
+  }
+
   function childFields(row = {}) {
     const checked = (row.is_active ?? true) ? "checked" : "";
-    const existingImg = row.image_url ? `<img src="${escapeHtml(row.image_url)}" class="upload-preview-img" id="uploadPreviewImg" />` : `<div class="upload-preview-placeholder" id="uploadPreviewImg">👶</div>`;
+    const existingImageUrl = resolveChildImageUrl(row.image_url);
+    const existingImg = existingImageUrl ? `<img src="${escapeHtml(existingImageUrl)}" class="upload-preview-img" id="uploadPreviewImg" />` : `<div class="upload-preview-placeholder" id="uploadPreviewImg">👶</div>`;
     return `
       <input name="id" value="${escapeHtml(row.id || "")}" type="hidden" />
       <input name="image_url" value="${escapeHtml(row.image_url || "")}" type="hidden" id="imageUrlHidden" />
@@ -797,11 +828,13 @@
 
         if (error) throw error;
 
-        const { data: urlData } = supabase.storage.from("children-photos").getPublicUrl(data.path);
+        const uploadedPath = data.path;
+        const { data: urlData } = supabase.storage.from("children-photos").getPublicUrl(uploadedPath);
         const publicUrl = urlData.publicUrl;
 
-        hidden.value = publicUrl;
-        manual.value = publicUrl;
+        // Persist storage object path in DB so URLs can be regenerated reliably.
+        hidden.value = uploadedPath;
+        manual.value = uploadedPath;
         status.textContent = "✅ Photo uploaded!";
         status.className   = "upload-status done";
         URL.revokeObjectURL(localUrl);
@@ -916,7 +949,10 @@
     if (!isAdmin()) { showToast("Only admins can add team members.", "warn"); return; }
 
     const fields = `
-      <div class="dialog-title">Add Admin / Mentor</div>
+      <div class="dialog-head">
+        <div class="dialog-title">Add Admin / Mentor</div>
+        <button type="button" class="dialog-close-btn" data-dialog-close aria-label="Close dialog">✕</button>
+      </div>
       <input name="full_name" placeholder="Full name" required />
       <input name="email" type="email" placeholder="Email" required />
       <input name="password" type="password" placeholder="Temporary password" minlength="6" required />
@@ -936,6 +972,7 @@
     `;
 
     editorForm.innerHTML = fields;
+    wireDialogCloseControls();
     editorForm.onsubmit = async (e) => {
       e.preventDefault();
       const fd = new FormData(editorForm);
@@ -957,6 +994,13 @@
     };
     editorDialog.showModal();
   }
+
+  // Allow closing dialog by clicking outside the dialog box.
+  editorDialog?.addEventListener("click", (e) => {
+    if (e.target === editorDialog) {
+      editorDialog.close();
+    }
+  });
 
   // ═══════════════════════════════════
   //  LOAD ALL

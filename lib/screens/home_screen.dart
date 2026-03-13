@@ -414,61 +414,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Popular Teachers',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  Text(
-                    '${AppData.programs.length} programs',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textLight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 190,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: const [
-                  _TeacherCard(
-                    name: 'Tia Morgan',
-                    role: 'Early Learning',
-                    color: Color(0xFFFFE0B2),
-                    icon: Icons.person_rounded,
-                  ),
-                  _TeacherCard(
-                    name: 'Rahul Mehta',
-                    role: 'Activity Coach',
-                    color: Color(0xFFC8E6C9),
-                    icon: Icons.person_rounded,
-                  ),
-                  _TeacherCard(
-                    name: 'Sara Lee',
-                    role: 'Special Educator',
-                    color: Color(0xFFBBDEFB),
-                    icon: Icons.person_rounded,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 18)),
-          SliverToBoxAdapter(
-            child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
               child: Container(
                 padding: const EdgeInsets.all(16),
@@ -642,68 +587,6 @@ class _ContributionCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(backgroundColor: color),
               child: Text(buttonLabel),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TeacherCard extends StatelessWidget {
-  final String name;
-  final String role;
-  final Color color;
-  final IconData icon;
-
-  const _TeacherCard({
-    required this.name,
-    required this.role,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 154,
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(icon, size: 46, color: AppTheme.textDark),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textDark,
-            ),
-          ),
-          Text(
-            role,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textMedium),
-          ),
-          const SizedBox(height: 8),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.circle, size: 7, color: AppTheme.primaryOrange),
-              SizedBox(width: 6),
-              Icon(Icons.circle, size: 7, color: AppTheme.accentBlue),
-              SizedBox(width: 6),
-              Icon(Icons.circle, size: 7, color: AppTheme.successGreen),
-            ],
           ),
         ],
       ),
