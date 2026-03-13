@@ -743,16 +743,67 @@ create table if not exists public.contact_messages (
 create table if not exists public.adoption_applications (
   id uuid primary key default gen_random_uuid(),
   full_name text not null check (char_length(trim(full_name)) >= 2),
+  first_name text,
+  last_name text,
+  date_of_birth date,
+  marital_status text,
+  address_street text,
+  state text,
+  zip_code text,
   email text not null check (position('@' in email) > 1),
   phone text,
   city text,
+  employer text,
   occupation text,
+  annual_income text,
+  preferred_age_range text,
+  preferred_gender text,
+  number_of_family_members int,
+  number_of_children int,
+  family_background text,
+  residence_type text,
+  ownership_status text,
+  health_insurance_provider text,
+  overall_health_status text,
+  reference1_name text,
+  reference1_phone text,
+  reference1_email text,
+  consent_background_check boolean not null default false,
+  agree_home_visits boolean not null default false,
+  previous_adoption_experience text,
+  motivation_for_adoption text,
   reason text not null check (char_length(trim(reason)) >= 20),
   has_children boolean,
   status text not null default 'submitted' check (status in ('submitted', 'shortlisted', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.adoption_applications add column if not exists first_name text;
+alter table public.adoption_applications add column if not exists last_name text;
+alter table public.adoption_applications add column if not exists date_of_birth date;
+alter table public.adoption_applications add column if not exists marital_status text;
+alter table public.adoption_applications add column if not exists address_street text;
+alter table public.adoption_applications add column if not exists state text;
+alter table public.adoption_applications add column if not exists zip_code text;
+alter table public.adoption_applications add column if not exists employer text;
+alter table public.adoption_applications add column if not exists annual_income text;
+alter table public.adoption_applications add column if not exists preferred_age_range text;
+alter table public.adoption_applications add column if not exists preferred_gender text;
+alter table public.adoption_applications add column if not exists number_of_family_members int;
+alter table public.adoption_applications add column if not exists number_of_children int;
+alter table public.adoption_applications add column if not exists family_background text;
+alter table public.adoption_applications add column if not exists residence_type text;
+alter table public.adoption_applications add column if not exists ownership_status text;
+alter table public.adoption_applications add column if not exists health_insurance_provider text;
+alter table public.adoption_applications add column if not exists overall_health_status text;
+alter table public.adoption_applications add column if not exists reference1_name text;
+alter table public.adoption_applications add column if not exists reference1_phone text;
+alter table public.adoption_applications add column if not exists reference1_email text;
+alter table public.adoption_applications add column if not exists consent_background_check boolean not null default false;
+alter table public.adoption_applications add column if not exists agree_home_visits boolean not null default false;
+alter table public.adoption_applications add column if not exists previous_adoption_experience text;
+alter table public.adoption_applications add column if not exists motivation_for_adoption text;
 
 -- Mentor enrollment submissions.
 create table if not exists public.mentor_applications (
