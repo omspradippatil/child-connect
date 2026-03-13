@@ -2,14 +2,35 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_data.dart';
 
-class AdoptionGuideScreen extends StatelessWidget {
+class AdoptionGuideScreen extends StatefulWidget {
   const AdoptionGuideScreen({super.key});
+
+  @override
+  State<AdoptionGuideScreen> createState() => _AdoptionGuideScreenState();
+}
+
+class _AdoptionGuideScreenState extends State<AdoptionGuideScreen> {
+  Future<void> _refreshScreen() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgWhite,
-      appBar: AppBar(title: const Text('Adoption Guide')),
+      appBar: AppBar(
+        title: const Text('Adoption Guide'),
+        actions: [
+          IconButton(
+            onPressed: _refreshScreen,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh guide',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [

@@ -21,6 +21,13 @@ class _MentorScreenState extends State<MentorScreen> {
   bool _submitted = false;
   bool _loading = false;
 
+  Future<void> _refreshScreen() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
   final List<String> _areas = [
     'Art & Creativity',
     'Sports & Fitness',
@@ -78,7 +85,16 @@ class _MentorScreenState extends State<MentorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgWhite,
-      appBar: AppBar(title: const Text('Become a Mentor')),
+      appBar: AppBar(
+        title: const Text('Become a Mentor'),
+        actions: [
+          IconButton(
+            onPressed: _refreshScreen,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh screen',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: _submitted ? _buildSuccess() : _buildForm(),

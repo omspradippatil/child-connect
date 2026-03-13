@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/gemini_service.dart';
 import '../utils/app_data.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -72,18 +73,38 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     // If online, refresh with the latest app backend data.
     try {
-      final response = await Supabase.instance.client.rpc(
+      final childrenResponse = await Supabase.instance.client.rpc(
         'app_get_public_children',
       );
-      final rows = response as List? ?? const [];
-      if (rows.isNotEmpty) {
-        _childrenData = rows
+      final childrenRows = childrenResponse as List? ?? const [];
+      if (childrenRows.isNotEmpty) {
+        _childrenData = childrenRows
+            .map((entry) => Map<String, dynamic>.from(entry as Map))
+            .toList();
+      }
+
+      final programsResponse = await Supabase.instance.client.rpc(
+        'app_get_public_programs',
+      );
+      final programRows = programsResponse as List? ?? const [];
+      if (programRows.isNotEmpty) {
+        _programsData = programRows
             .map((entry) => Map<String, dynamic>.from(entry as Map))
             .toList();
       }
     } catch (_) {
       // Keep fallback data silently when backend is unavailable.
     }
+  }
+
+  Future<void> _refreshAssistant() async {
+    await _loadKnowledgeBase();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Assistant data refreshed.')));
   }
 
   Future<void> _sendMessage(String text) async {
@@ -99,7 +120,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     try {
       await Future.delayed(const Duration(milliseconds: 450));
-      final botResponse = _buildResponse(text);
+      final botResponse = await _resolveResponse(text);
 
       setState(() {
         _messages.add(ChatMessage(text: botResponse, isUser: false));
@@ -139,9 +160,30 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
   }
 
-  String _buildResponse(String rawQuery) {
+  Future<String> _resolveResponse(String rawQuery) async {
+    final localResponse = _buildLocalResponse(rawQuery);
+    if (localResponse != null) {
+      return localResponse;
+    }
+
+    final geminiResponse = await GeminiService.generateSupportResponse(
+      userMessage: rawQuery,
+      children: _childrenData,
+      programs: _programsData,
+      adoptionSteps: _adoptionStepsData,
+      missionPoints: _missionData,
+    );
+
+    if (geminiResponse != null && geminiResponse.trim().isNotEmpty) {
+      return geminiResponse.trim();
+    }
+
+    return 'I could not find a direct answer in the app data right now. Try asking about adoption, children, programs, mentoring, or contact support.';
+  }
+
+  String? _buildLocalResponse(String rawQuery) {
     final query = rawQuery.trim().toLowerCase();
-    final hasWord = (String word) => query.contains(word);
+    bool hasWord(String word) => query.contains(word);
 
     if (hasWord('adopt') || hasWord('adoption') || hasWord('process')) {
       final steps = _adoptionStepsData
@@ -195,7 +237,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       return 'Support options in the app:\n$supports\n\nFor direct help, use Contact to send a message or request an appointment call.';
     }
 
-    return 'I can help with Child Connect information from this app. Try asking:\n- How do I adopt a child?\n- Show available children\n- What programs are available?\n- How do I contact support?';
+    return null;
   }
 
   @override
@@ -207,6 +249,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         backgroundColor: const Color(0xFFF77F45),
         foregroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          IconButton(
+            onPressed: _refreshAssistant,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh assistant data',
+          ),
+        ],
       ),
       body: Column(
         children: [

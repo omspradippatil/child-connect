@@ -2,14 +2,35 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_data.dart';
 
-class MissionScreen extends StatelessWidget {
+class MissionScreen extends StatefulWidget {
   const MissionScreen({super.key});
+
+  @override
+  State<MissionScreen> createState() => _MissionScreenState();
+}
+
+class _MissionScreenState extends State<MissionScreen> {
+  Future<void> _refreshScreen() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgWhite,
-      appBar: AppBar(title: const Text('Our Mission')),
+      appBar: AppBar(
+        title: const Text('Our Mission'),
+        actions: [
+          IconButton(
+            onPressed: _refreshScreen,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh mission',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [

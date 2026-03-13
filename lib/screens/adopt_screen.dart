@@ -126,6 +126,11 @@ class _AdoptScreenState extends State<AdoptScreen> {
         title: const Text('Adopt a Child'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh children',
+            onPressed: _loadChildren,
+          ),
+          IconButton(
             icon: const Icon(Icons.info_outline, color: AppTheme.accentBlue),
             tooltip: 'Adoption Guide',
             onPressed: () {

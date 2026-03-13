@@ -10,8 +10,20 @@ import 'mentor_chat_screen.dart';
 import 'contact_screen.dart';
 import 'chatbot_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _refreshHome() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +38,11 @@ class HomeScreen extends StatelessWidget {
             floating: true,
             title: const Text('Child Connect'),
             actions: [
+              IconButton(
+                onPressed: _refreshHome,
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Refresh home',
+              ),
               IconButton(
                 onPressed: AuthService.signOut,
                 icon: const Icon(Icons.logout_rounded),

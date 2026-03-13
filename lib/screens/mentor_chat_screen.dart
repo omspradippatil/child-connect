@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,6 +14,7 @@ class MentorChatScreen extends StatefulWidget {
 
 class _MentorChatScreenState extends State<MentorChatScreen> {
   final TextEditingController _messageCtrl = TextEditingController();
+  Timer? _pollingTimer;
   bool _loading = true;
   bool _sending = false;
   String? _threadId;
@@ -22,10 +25,16 @@ class _MentorChatScreenState extends State<MentorChatScreen> {
   void initState() {
     super.initState();
     _bootstrapChat();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        _refreshMessages();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _messageCtrl.dispose();
     super.dispose();
   }
@@ -177,7 +186,16 @@ class _MentorChatScreenState extends State<MentorChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mentor Support Chat')),
+      appBar: AppBar(
+        title: const Text('Mentor Support Chat'),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _refreshMessages,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh messages',
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

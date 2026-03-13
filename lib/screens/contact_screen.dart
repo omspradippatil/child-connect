@@ -19,6 +19,13 @@ class _ContactScreenState extends State<ContactScreen> {
   bool _submitted = false;
   bool _loading = false;
 
+  Future<void> _refreshScreen() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -65,6 +72,11 @@ class _ContactScreenState extends State<ContactScreen> {
       appBar: AppBar(
         title: const Text('Contact Us'),
         actions: [
+          IconButton(
+            tooltip: 'Refresh screen',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _refreshScreen,
+          ),
           IconButton(
             tooltip: 'Chat with Assistant',
             icon: const Icon(Icons.chat_bubble_outline),

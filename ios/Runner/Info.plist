@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Child Connect needs camera access so users can capture a police clearance certificate photo during verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Child Connect needs photo library access so users can upload a police clearance certificate during verification.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Child Connect may save verification images selected during identity verification.</string>
 </dict>
 </plist>

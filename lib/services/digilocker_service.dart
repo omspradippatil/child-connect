@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DigiLockerService {
@@ -13,6 +15,7 @@ class DigiLockerService {
   static const String _docAadhaar = 'Aadhaar Card';
   static const String _docPan = 'PAN Card';
   static const String _docPolice = 'Police Clearance Certificate';
+  static final ImagePicker _imagePicker = ImagePicker();
 
   /// This initiates the OAuth flow by opening the DigiLocker authorization page.
   static Future<void> launchDigiLockerLogin() async {
@@ -58,7 +61,7 @@ class DigiLockerService {
 
       // 2. Simulate the redirect capture using a Dialog for educational purposes.
       // In a real app, this would be captured by app_links / uni_links package automatically.
-      final result = await _showSimulatedRedirectDialog(context);
+      final result = await _showVerificationForm(context);
 
       if (result == null || !result.confirmed || result.code.isEmpty) {
         return false; // User cancelled
@@ -74,7 +77,10 @@ class DigiLockerService {
       final hasRequiredDocs =
           docs.contains(_docAadhaar) &&
           docs.contains(_docPan) &&
-          docs.contains(_docPolice);
+          docs.contains(_docPolice) &&
+          _isValidAadhaar(result.aadhaarNumber) &&
+          _isValidPan(result.panNumber) &&
+          result.policeCertificate != null;
 
       if (hasRequiredDocs) {
         return true;
@@ -87,90 +93,276 @@ class DigiLockerService {
     }
   }
 
-  static Future<_SimulatedVerificationResult?> _showSimulatedRedirectDialog(
+  static Future<_VerificationResult?> _showVerificationForm(
     BuildContext context,
   ) {
-    bool aadhaar = true;
-    bool pan = true;
-    bool police = true;
+    final formKey = GlobalKey<FormState>();
+    final aadhaarController = TextEditingController();
+    final panController = TextEditingController();
+    XFile? selectedCertificate;
+    bool busy = false;
 
-    return showDialog<_SimulatedVerificationResult>(
+    return showModalBottomSheet<_VerificationResult>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return AlertDialog(
-              title: const Text('Verify Required Documents'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Please confirm DigiLocker authentication and available documents:',
+            Future<void> selectCertificate(ImageSource source) async {
+              try {
+                setModalState(() => busy = true);
+                final file = await _imagePicker.pickImage(
+                  source: source,
+                  imageQuality: 85,
+                );
+                if (file == null) {
+                  return;
+                }
+                setModalState(() => selectedCertificate = file);
+              } finally {
+                setModalState(() => busy = false);
+              }
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'DigiLocker Verification',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Complete identity verification with Aadhaar number, PAN number, and Police Clearance Certificate upload.',
+                        ),
+                        const SizedBox(height: 18),
+                        TextFormField(
+                          controller: aadhaarController,
+                          keyboardType: TextInputType.number,
+                          maxLength: 12,
+                          decoration: const InputDecoration(
+                            labelText: 'Aadhaar Number',
+                            hintText: 'Enter 12-digit Aadhaar number',
+                            prefixIcon: Icon(Icons.badge_outlined),
+                          ),
+                          validator: (value) {
+                            if (!_isValidAadhaar(value ?? '')) {
+                              return 'Enter a valid 12-digit Aadhaar number';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: panController,
+                          textCapitalization: TextCapitalization.characters,
+                          maxLength: 10,
+                          decoration: const InputDecoration(
+                            labelText: 'PAN Number',
+                            hintText: 'Enter PAN number',
+                            prefixIcon: Icon(Icons.credit_card_outlined),
+                          ),
+                          validator: (value) {
+                            if (!_isValidPan(value ?? '')) {
+                              return 'Enter a valid PAN number';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F8FC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFDDE3F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Police Clearance Certificate',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                selectedCertificate == null
+                                    ? 'No file selected yet.'
+                                    : 'Selected: ${selectedCertificate!.name}',
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: busy
+                                          ? null
+                                          : () => selectCertificate(
+                                              ImageSource.gallery,
+                                            ),
+                                      icon: const Icon(
+                                        Icons.photo_library_outlined,
+                                      ),
+                                      label: const Text('Gallery'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: busy
+                                          ? null
+                                          : () => selectCertificate(
+                                              ImageSource.camera,
+                                            ),
+                                      icon: const Icon(
+                                        Icons.photo_camera_outlined,
+                                      ),
+                                      label: const Text('Camera'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (selectedCertificate != null &&
+                                  !selectedCertificate!.path.startsWith(
+                                    'http',
+                                  ) &&
+                                  File(
+                                    selectedCertificate!.path,
+                                  ).existsSync()) ...[
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(selectedCertificate!.path),
+                                    height: 160,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: busy
+                                    ? null
+                                    : () => Navigator.pop(ctx, null),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: busy
+                                    ? null
+                                    : () {
+                                        final isValid =
+                                            formKey.currentState?.validate() ??
+                                            false;
+                                        if (!isValid) {
+                                          return;
+                                        }
+                                        if (selectedCertificate == null) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Upload the Police Clearance Certificate from gallery or camera.',
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        Navigator.pop(
+                                          ctx,
+                                          _VerificationResult(
+                                            confirmed: true,
+                                            code:
+                                                'sample_auth_code_${Random().nextInt(99999)}',
+                                            aadhaarNumber: aadhaarController
+                                                .text
+                                                .trim(),
+                                            panNumber: panController.text
+                                                .trim()
+                                                .toUpperCase(),
+                                            policeCertificate:
+                                                selectedCertificate,
+                                          ),
+                                        );
+                                      },
+                                child: busy
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text('Verify And Continue'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    value: aadhaar,
-                    onChanged: (value) {
-                      setModalState(() => aadhaar = value ?? false);
-                    },
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(_docAadhaar),
-                  ),
-                  CheckboxListTile(
-                    value: pan,
-                    onChanged: (value) {
-                      setModalState(() => pan = value ?? false);
-                    },
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(_docPan),
-                  ),
-                  CheckboxListTile(
-                    value: police,
-                    onChanged: (value) {
-                      setModalState(() => police = value ?? false);
-                    },
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(_docPolice),
-                  ),
-                ],
+                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, null),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      ctx,
-                      _SimulatedVerificationResult(
-                        confirmed: aadhaar && pan && police,
-                        code: 'sample_auth_code_${Random().nextInt(99999)}',
-                      ),
-                    );
-                  },
-                  child: const Text('Continue'),
-                ),
-              ],
             );
           },
         );
       },
     );
   }
+
+  static bool _isValidAadhaar(String value) {
+    final normalized = value.replaceAll(RegExp(r'\s+'), '');
+    return RegExp(r'^\d{12}$').hasMatch(normalized);
+  }
+
+  static bool _isValidPan(String value) {
+    final normalized = value.trim().toUpperCase();
+    return RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(normalized);
+  }
 }
 
-class _SimulatedVerificationResult {
-  const _SimulatedVerificationResult({
+class _VerificationResult {
+  const _VerificationResult({
     required this.confirmed,
     required this.code,
+    required this.aadhaarNumber,
+    required this.panNumber,
+    required this.policeCertificate,
   });
 
   final bool confirmed;
   final String code;
+  final String aadhaarNumber;
+  final String panNumber;
+  final XFile? policeCertificate;
 }

@@ -97,9 +97,10 @@ class AuthService {
     await _setSession(user);
   }
 
-  static Future<void> signIn({
+  static Future<AppUser> signIn({
     required String email,
     required String password,
+    bool persistSession = true,
   }) async {
     final response = await _client.rpc(
       'app_sign_in',
@@ -111,6 +112,13 @@ class AuthService {
     if (user == null) {
       throw Exception('Invalid credentials.');
     }
+    if (persistSession) {
+      await _setSession(user);
+    }
+    return user;
+  }
+
+  static Future<void> establishSession(AppUser user) async {
     await _setSession(user);
   }
 

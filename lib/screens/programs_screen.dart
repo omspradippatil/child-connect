@@ -79,7 +79,16 @@ class _ProgramsScreenState extends State<ProgramsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgWhite,
-      appBar: AppBar(title: const Text('Development Programs')),
+      appBar: AppBar(
+        title: const Text('Development Programs'),
+        actions: [
+          IconButton(
+            onPressed: _loadPrograms,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh programs',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

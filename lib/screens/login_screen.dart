@@ -49,19 +49,18 @@ class _LoginScreenState extends State<LoginScreen> {
           fullName: _nameCtrl.text,
         );
       } else {
-        await AuthService.signIn(
+        final signedInUser = await AuthService.signIn(
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
+          persistSession: false,
         );
 
-        final signedInUser = AuthService.currentUser;
-        if (signedInUser != null && signedInUser.role.toLowerCase() == 'user') {
+        if (signedInUser.role.toLowerCase() == 'user') {
           if (!mounted) {
             return;
           }
           final verified = await DigiLockerService.verifyUserIdentity(context);
           if (!verified) {
-            await AuthService.signOut();
             setState(() {
               _error =
                   'Verification requires Police Clearance Certificate, Aadhaar Card, and PAN Card.';
@@ -69,6 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
         }
+
+        await AuthService.establishSession(signedInUser);
       }
     } on PostgrestException catch (error) {
       setState(() => _error = error.message);
