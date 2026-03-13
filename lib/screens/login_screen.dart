@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final title = _isAdminTab ? 'Admin Access' : 'Welcome to Child Connect';
     final subtitle = _isAdminTab
-      ? 'Sign in with your admin credentials to review platform submissions.'
+        ? 'Sign in with your admin credentials to review platform submissions.'
         : 'Sign in or create your account to continue your adoption journey.';
 
     return Scaffold(

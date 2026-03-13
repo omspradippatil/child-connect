@@ -68,7 +68,7 @@ begin
   values (
     trim(p_full_name),
     v_email,
-    crypt(p_password, gen_salt('bf'))
+    extensions.crypt(p_password, extensions.gen_salt('bf'))
   )
   returning * into v_user;
 
@@ -107,7 +107,7 @@ begin
     raise exception 'Invalid email or password';
   end if;
 
-  if v_user.password_hash <> crypt(coalesce(p_password, ''), v_user.password_hash) then
+  if v_user.password_hash <> extensions.crypt(coalesce(p_password, ''), v_user.password_hash) then
     raise exception 'Invalid email or password';
   end if;
 
