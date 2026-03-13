@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
+import '../services/digilocker_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/validators.dart';
 
@@ -52,6 +53,22 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
         );
+
+        final signedInUser = AuthService.currentUser;
+        if (signedInUser != null && signedInUser.role.toLowerCase() == 'user') {
+          if (!mounted) {
+            return;
+          }
+          final verified = await DigiLockerService.verifyUserIdentity(context);
+          if (!verified) {
+            await AuthService.signOut();
+            setState(() {
+              _error =
+                  'Verification requires Police Clearance Certificate, Aadhaar Card, and PAN Card.';
+            });
+            return;
+          }
+        }
       }
     } on PostgrestException catch (error) {
       setState(() => _error = error.message);

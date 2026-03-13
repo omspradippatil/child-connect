@@ -6,6 +6,7 @@ import 'adopt_screen.dart';
 import 'mission_screen.dart';
 import 'programs_screen.dart';
 import 'mentor_screen.dart';
+import 'mentor_chat_screen.dart';
 import 'contact_screen.dart';
 import 'chatbot_screen.dart';
 
@@ -309,14 +310,28 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    OutlinedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ChatbotScreen(),
+                    Column(
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ChatbotScreen(),
+                            ),
+                          ),
+                          child: const Text('AI Chat'),
                         ),
-                      ),
-                      child: const Text('Open Chat'),
+                        const SizedBox(height: 8),
+                        OutlinedButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MentorChatScreen(),
+                            ),
+                          ),
+                          child: const Text('Mentor Chat'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

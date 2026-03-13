@@ -24,6 +24,14 @@
 
   const addChildBtn = document.getElementById("addChildBtn");
   const addProgramBtn = document.getElementById("addProgramBtn");
+  const addTeamMemberBtn = document.getElementById("addTeamMemberBtn");
+
+  const teamList = document.getElementById("teamList");
+  const chatThreads = document.getElementById("chatThreads");
+  const chatMessages = document.getElementById("chatMessages");
+  const chatSendForm = document.getElementById("chatSendForm");
+  const chatInput = document.getElementById("chatInput");
+  const activeChatTitle = document.getElementById("activeChatTitle");
 
   const editorDialog = document.getElementById("editorDialog");
   const editorForm = document.getElementById("editorForm");
@@ -32,6 +40,8 @@
   const tabs = Array.from(document.querySelectorAll(".tab"));
 
   let sessionToken = localStorage.getItem(tokenKey) || "";
+  let currentUser = null;
+  let activeThreadId = "";
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -57,6 +67,49 @@
     tabs.forEach((tab) => tab.classList.toggle("active", tab.id === name));
   }
 
+  function isAdmin() {
+    return (currentUser?.role || "").toLowerCase() === "admin";
+  }
+
+  function isMentor() {
+    return (currentUser?.role || "").toLowerCase() === "mentor";
+  }
+
+  function applyRolePermissions() {
+    const mentorOnly = isMentor();
+
+    navButtons.forEach((btn) => {
+      const tab = btn.dataset.tab;
+      if (!tab) {
+        return;
+      }
+      if (mentorOnly) {
+        const allowed = tab === "mentorChat";
+        btn.classList.toggle("hidden", !allowed);
+      } else {
+        btn.classList.remove("hidden");
+      }
+    });
+
+    if (addChildBtn) addChildBtn.classList.toggle("hidden", mentorOnly);
+    if (addProgramBtn) addProgramBtn.classList.toggle("hidden", mentorOnly);
+    if (addTeamMemberBtn) addTeamMemberBtn.classList.toggle("hidden", mentorOnly);
+
+    const tabsToHide = ["overview", "children", "programs", "requests", "team"];
+    tabsToHide.forEach((tabId) => {
+      const tabEl = document.getElementById(tabId);
+      if (!tabEl) return;
+      tabEl.classList.toggle("hidden", mentorOnly);
+    });
+
+    const mentorTab = document.getElementById("mentorChat");
+    if (mentorTab) {
+      mentorTab.classList.remove("hidden");
+    }
+
+    setActiveTab(mentorOnly ? "mentorChat" : "overview");
+  }
+
   async function rpc(name, params = {}) {
     const { data, error } = await supabase.rpc(name, params);
     if (error) throw error;
@@ -74,9 +127,11 @@
     const token = data?.session_token;
     const user = data?.user;
     if (!token || !user) throw new Error("Invalid login response");
-    if ((user.role || "").toLowerCase() !== "admin") {
-      throw new Error("This account is not admin.");
+    const role = (user.role || "").toLowerCase();
+    if (role !== "admin" && role !== "mentor") {
+      throw new Error("Only admin or mentor accounts can access this panel.");
     }
+    currentUser = user;
     setToken(token);
   }
 
@@ -86,6 +141,8 @@
         await rpc("app_sign_out", { p_session_token: sessionToken });
       } catch (_) { }
     }
+    currentUser = null;
+    activeThreadId = "";
     setToken("");
     showAuth();
   }
@@ -167,6 +224,95 @@
     renderRequestList(adoptionList, data.adoptions || [], "adoption", ["submitted", "shortlisted", "approved", "rejected"]);
     renderRequestList(mentorList, data.mentors || [], "mentor", ["submitted", "screening", "approved", "rejected"]);
     renderRequestList(contactList, data.contacts || [], "contact", ["new", "in_review", "resolved"]);
+  }
+
+  async function loadTeamUsers() {
+    if (!isAdmin()) {
+      teamList.innerHTML = '<div class="muted">Team management is only available for admins.</div>';
+      return;
+    }
+
+    const rows = await rpc("app_admin_list_team_users", { p_session_token: sessionToken });
+    const items = Array.isArray(rows) ? rows : [];
+
+    teamList.innerHTML = items
+      .map((row) => {
+        const subtitle = `${row.email} | ${(row.is_active ? "active" : "inactive")}`;
+        return buildItem(row.full_name, subtitle, "", row.role);
+      })
+      .join("");
+  }
+
+  function formatDate(ts) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString();
+  }
+
+  async function loadChatThreads() {
+    const rows = await rpc("app_admin_list_chat_threads", { p_session_token: sessionToken });
+    const items = Array.isArray(rows) ? rows : [];
+
+    chatThreads.innerHTML = items
+      .map((row) => {
+        const subtitle = `${row.user_email} | ${row.status}`;
+        const preview = row.last_message ? `<div class="muted">${escapeHtml(row.last_message)}</div>` : "";
+        const activeClass = row.id === activeThreadId ? " active" : "";
+        return `
+          <div class="item thread-item${activeClass}" data-thread-id="${row.id}">
+            <div><strong>${escapeHtml(row.user_name || "Unknown User")}</strong></div>
+            <div class="muted">${escapeHtml(subtitle)}</div>
+            ${preview}
+            <div class="muted">${escapeHtml(formatDate(row.last_message_at || row.updated_at))}</div>
+          </div>
+        `;
+      })
+      .join("");
+
+    chatThreads.querySelectorAll("[data-thread-id]").forEach((item) => {
+      item.addEventListener("click", async () => {
+        activeThreadId = item.getAttribute("data-thread-id") || "";
+        await loadChatThreads();
+        await loadChatMessages();
+      });
+    });
+
+    if (!activeThreadId && items.length > 0) {
+      activeThreadId = items[0].id;
+      await loadChatThreads();
+      await loadChatMessages();
+    }
+  }
+
+  async function loadChatMessages() {
+    if (!activeThreadId) {
+      activeChatTitle.textContent = "Select a thread";
+      chatMessages.innerHTML = '<div class="muted">Choose a user thread to view messages.</div>';
+      return;
+    }
+
+    const rows = await rpc("app_admin_list_chat_messages", {
+      p_session_token: sessionToken,
+      p_thread_id: activeThreadId
+    });
+    const items = Array.isArray(rows) ? rows : [];
+
+    activeChatTitle.textContent = `Thread: ${activeThreadId.slice(0, 8)}...`;
+    chatMessages.innerHTML = items
+      .map((row) => {
+        const role = (row.sender_role || "").toLowerCase();
+        const mine = role === "admin" || role === "mentor";
+        return `
+          <div class="chat-bubble ${mine ? "mine" : "theirs"}">
+            <div>${escapeHtml(row.message_text || "")}</div>
+            <span class="chat-meta">${escapeHtml(role || "user")} | ${escapeHtml(formatDate(row.created_at))}</span>
+          </div>
+        `;
+      })
+      .join("");
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
   function renderRequestList(container, rows, type, statuses) {
@@ -337,8 +483,68 @@
     });
   }
 
+  function openTeamMemberDialog() {
+    if (!isAdmin()) {
+      alert("Only admins can add team members.");
+      return;
+    }
+
+    const fields = `
+      <h3>Add Admin Or Mentor</h3>
+      <input name="full_name" placeholder="Full name" required />
+      <input name="email" type="email" placeholder="Email" required />
+      <input name="password" type="password" placeholder="Temporary password" minlength="6" required />
+      <select name="role" required>
+        <option value="mentor">Mentor</option>
+        <option value="admin">Admin</option>
+      </select>
+      <label class="toggle-label">
+        <input name="is_active" type="checkbox" class="toggle-input" checked />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">Active</span>
+      </label>
+      <div class="item-actions wrap">
+        <button value="cancel" formmethod="dialog" class="ghost">Cancel</button>
+        <button type="submit">Create</button>
+      </div>
+    `;
+
+    editorForm.innerHTML = fields;
+    editorForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(editorForm);
+      try {
+        await rpc("app_admin_create_user", {
+          p_session_token: sessionToken,
+          p_full_name: fd.get("full_name"),
+          p_email: fd.get("email"),
+          p_password: fd.get("password"),
+          p_role: fd.get("role"),
+          p_is_active: fd.get("is_active") === "on"
+        });
+        editorDialog.close();
+        await loadTeamUsers();
+      } catch (err) {
+        alert(err.message || "Unable to create team member");
+      }
+    };
+
+    editorDialog.showModal();
+  }
+
   async function loadAllData() {
-    await Promise.all([loadOverview(), loadContent(), loadRequests()]);
+    if (isMentor()) {
+      await Promise.all([loadChatThreads()]);
+      return;
+    }
+
+    await Promise.all([
+      loadOverview(),
+      loadContent(),
+      loadRequests(),
+      loadTeamUsers(),
+      loadChatThreads(),
+    ]);
   }
 
   loginForm.addEventListener("submit", async (e) => {
@@ -349,6 +555,7 @@
       const password = document.getElementById("password").value;
       await signIn(email, password);
       showApp();
+      applyRolePermissions();
       await loadAllData();
     } catch (err) {
       authError.textContent = err.message || "Sign in failed";
@@ -365,6 +572,38 @@
     openDialog(programFields(), saveProgram, "Add Program");
   });
 
+  if (addTeamMemberBtn) {
+    addTeamMemberBtn.addEventListener("click", openTeamMemberDialog);
+  }
+
+  if (chatSendForm) {
+    chatSendForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!activeThreadId) {
+        alert("Select a thread first.");
+        return;
+      }
+
+      const text = (chatInput.value || "").trim();
+      if (!text) {
+        return;
+      }
+
+      try {
+        await rpc("app_admin_send_chat_message", {
+          p_session_token: sessionToken,
+          p_thread_id: activeThreadId,
+          p_message_text: text
+        });
+        chatInput.value = "";
+        await loadChatMessages();
+        await loadChatThreads();
+      } catch (err) {
+        alert(err.message || "Failed to send message");
+      }
+    });
+  }
+
   navButtons.forEach((btn) => {
     btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
   });
@@ -376,10 +615,17 @@
     }
 
     try {
-      await rpc("app_get_session_user", { p_session_token: sessionToken });
+      const user = await rpc("app_get_session_user", { p_session_token: sessionToken });
+      currentUser = user;
+      const role = (currentUser?.role || "").toLowerCase();
+      if (role !== "admin" && role !== "mentor") {
+        throw new Error("Not authorized");
+      }
       showApp();
+      applyRolePermissions();
       await loadAllData();
     } catch (_) {
+      currentUser = null;
       setToken("");
       showAuth();
     }

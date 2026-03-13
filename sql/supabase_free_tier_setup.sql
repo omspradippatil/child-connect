@@ -22,7 +22,7 @@ create table if not exists public.app_users (
   full_name text not null check (char_length(trim(full_name)) >= 2),
   email text not null,
   password_hash text not null,
-  role text not null default 'user' check (role in ('user', 'admin')),
+  role text not null default 'user' check (role in ('user', 'admin', 'mentor')),
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -885,6 +885,12 @@ alter table public.contact_messages enable row level security;
 alter table public.adoption_applications enable row level security;
 alter table public.mentor_applications enable row level security;
 
+alter table public.app_users
+drop constraint if exists app_users_role_check;
+
+alter table public.app_users
+add constraint app_users_role_check check (role in ('user', 'admin', 'mentor'));
+
 -- Public form submissions.
 drop policy if exists contact_messages_insert_public on public.contact_messages;
 create policy contact_messages_insert_public
@@ -963,6 +969,502 @@ for all
 to service_role
 using (true)
 with check (true);
+
+-- Mentor chat tables.
+create table if not exists public.mentor_chat_threads (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  assigned_mentor_id uuid references public.app_users(id) on delete set null,
+  status text not null default 'open' check (status in ('open', 'closed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists ux_mentor_chat_threads_user_id
+on public.mentor_chat_threads (user_id);
+
+create table if not exists public.mentor_chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.mentor_chat_threads(id) on delete cascade,
+  sender_user_id uuid not null references public.app_users(id) on delete cascade,
+  sender_role text not null check (sender_role in ('user', 'mentor', 'admin')),
+  message_text text not null check (char_length(trim(message_text)) >= 1),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_mentor_chat_messages_thread_created
+on public.mentor_chat_messages (thread_id, created_at asc);
+
+drop trigger if exists set_mentor_chat_threads_updated_at on public.mentor_chat_threads;
+create trigger set_mentor_chat_threads_updated_at
+before update on public.mentor_chat_threads
+for each row execute function public.set_updated_at();
+
+alter table public.mentor_chat_threads enable row level security;
+alter table public.mentor_chat_messages enable row level security;
+
+drop policy if exists mentor_chat_threads_service_all on public.mentor_chat_threads;
+create policy mentor_chat_threads_service_all
+on public.mentor_chat_threads
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists mentor_chat_messages_service_all on public.mentor_chat_messages;
+create policy mentor_chat_messages_service_all
+on public.mentor_chat_messages
+for all
+to service_role
+using (true)
+with check (true);
+
+-- Resolve an active session into an app user.
+create or replace function public.app_session_user_from_token(
+  p_session_token text
+)
+returns public.app_users
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token_hash text;
+  v_user public.app_users;
+begin
+  if coalesce(p_session_token, '') = '' then
+    raise exception 'Missing session token';
+  end if;
+
+  v_token_hash := encode(extensions.digest(p_session_token, 'sha256'), 'hex');
+
+  select u.*
+  into v_user
+  from public.app_sessions s
+  join public.app_users u on u.id = s.user_id
+  where s.token_hash = v_token_hash
+    and s.revoked_at is null
+    and s.expires_at > now()
+    and u.is_active = true
+  limit 1;
+
+  if not found then
+    raise exception 'Session invalid or expired';
+  end if;
+
+  return v_user;
+end;
+$$;
+
+-- Admin and mentor both can access mentor chat surfaces.
+create or replace function public.app_admin_or_mentor_user_id_from_token(
+  p_session_token text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users;
+begin
+  v_user := public.app_session_user_from_token(p_session_token);
+
+  if v_user.role not in ('admin', 'mentor') then
+    raise exception 'Not authorized';
+  end if;
+
+  return v_user.id;
+end;
+$$;
+
+create or replace function public.app_admin_create_user(
+  p_session_token text,
+  p_full_name text,
+  p_email text,
+  p_password text,
+  p_role text,
+  p_is_active boolean default true
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_admin_id uuid;
+  v_email text;
+  v_role text;
+  v_user public.app_users;
+begin
+  v_admin_id := public.app_admin_user_id_from_token(p_session_token);
+  if v_admin_id is null then
+    raise exception 'Not authorized';
+  end if;
+
+  v_email := lower(trim(coalesce(p_email, '')));
+  v_role := lower(trim(coalesce(p_role, '')));
+
+  if char_length(trim(coalesce(p_full_name, ''))) < 2 then
+    raise exception 'Full name must be at least 2 characters';
+  end if;
+
+  if position('@' in v_email) <= 1 then
+    raise exception 'Invalid email address';
+  end if;
+
+  if char_length(coalesce(p_password, '')) < 6 then
+    raise exception 'Password must be at least 6 characters';
+  end if;
+
+  if v_role not in ('admin', 'mentor') then
+    raise exception 'Role must be admin or mentor';
+  end if;
+
+  if exists (select 1 from public.app_users u where lower(u.email) = v_email) then
+    raise exception 'Email already registered';
+  end if;
+
+  insert into public.app_users (
+    full_name,
+    email,
+    password_hash,
+    role,
+    is_active
+  ) values (
+    trim(p_full_name),
+    v_email,
+    extensions.crypt(p_password, extensions.gen_salt('bf')),
+    v_role,
+    coalesce(p_is_active, true)
+  )
+  returning * into v_user;
+
+  return jsonb_build_object(
+    'id', v_user.id,
+    'full_name', v_user.full_name,
+    'email', v_user.email,
+    'role', v_user.role,
+    'is_active', v_user.is_active,
+    'created_at', v_user.created_at
+  );
+end;
+$$;
+
+create or replace function public.app_admin_list_team_users(
+  p_session_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  return coalesce(
+    (
+      select jsonb_agg(to_jsonb(u))
+      from (
+        select id, full_name, email, role, is_active, created_at
+        from public.app_users
+        where role in ('admin', 'mentor')
+        order by role asc, created_at desc
+      ) u
+    ),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.app_user_get_or_create_chat_thread(
+  p_session_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users;
+  v_thread public.mentor_chat_threads;
+begin
+  v_user := public.app_session_user_from_token(p_session_token);
+
+  if v_user.role <> 'user' then
+    raise exception 'Only user accounts can open this chat';
+  end if;
+
+  select *
+  into v_thread
+  from public.mentor_chat_threads t
+  where t.user_id = v_user.id
+  limit 1;
+
+  if not found then
+    insert into public.mentor_chat_threads (user_id)
+    values (v_user.id)
+    returning * into v_thread;
+  end if;
+
+  return jsonb_build_object(
+    'id', v_thread.id,
+    'user_id', v_thread.user_id,
+    'assigned_mentor_id', v_thread.assigned_mentor_id,
+    'status', v_thread.status,
+    'created_at', v_thread.created_at,
+    'updated_at', v_thread.updated_at
+  );
+end;
+$$;
+
+create or replace function public.app_user_list_chat_messages(
+  p_session_token text,
+  p_thread_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users;
+begin
+  v_user := public.app_session_user_from_token(p_session_token);
+
+  if not exists (
+    select 1
+    from public.mentor_chat_threads t
+    where t.id = p_thread_id
+      and t.user_id = v_user.id
+  ) then
+    raise exception 'Thread not found';
+  end if;
+
+  return coalesce(
+    (
+      select jsonb_agg(to_jsonb(m))
+      from (
+        select id, thread_id, sender_user_id, sender_role, message_text, created_at
+        from public.mentor_chat_messages
+        where thread_id = p_thread_id
+        order by created_at asc
+      ) m
+    ),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.app_user_send_chat_message(
+  p_session_token text,
+  p_thread_id uuid,
+  p_message_text text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users;
+  v_msg public.mentor_chat_messages;
+begin
+  v_user := public.app_session_user_from_token(p_session_token);
+
+  if v_user.role <> 'user' then
+    raise exception 'Only user accounts can send from this endpoint';
+  end if;
+
+  if not exists (
+    select 1
+    from public.mentor_chat_threads t
+    where t.id = p_thread_id
+      and t.user_id = v_user.id
+  ) then
+    raise exception 'Thread not found';
+  end if;
+
+  insert into public.mentor_chat_messages (
+    thread_id,
+    sender_user_id,
+    sender_role,
+    message_text
+  ) values (
+    p_thread_id,
+    v_user.id,
+    'user',
+    trim(coalesce(p_message_text, ''))
+  )
+  returning * into v_msg;
+
+  update public.mentor_chat_threads
+  set updated_at = now()
+  where id = p_thread_id;
+
+  return to_jsonb(v_msg);
+end;
+$$;
+
+create or replace function public.app_admin_list_chat_threads(
+  p_session_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor_id uuid;
+begin
+  v_actor_id := public.app_admin_or_mentor_user_id_from_token(p_session_token);
+
+  return coalesce(
+    (
+      select jsonb_agg(to_jsonb(x))
+      from (
+        select
+          t.id,
+          t.user_id,
+          u.full_name as user_name,
+          u.email as user_email,
+          t.status,
+          t.updated_at,
+          (
+            select m.message_text
+            from public.mentor_chat_messages m
+            where m.thread_id = t.id
+            order by m.created_at desc
+            limit 1
+          ) as last_message,
+          (
+            select m.created_at
+            from public.mentor_chat_messages m
+            where m.thread_id = t.id
+            order by m.created_at desc
+            limit 1
+          ) as last_message_at
+        from public.mentor_chat_threads t
+        join public.app_users u on u.id = t.user_id
+        order by coalesce(
+          (
+            select m.created_at
+            from public.mentor_chat_messages m
+            where m.thread_id = t.id
+            order by m.created_at desc
+            limit 1
+          ),
+          t.updated_at
+        ) desc
+      ) x
+    ),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.app_admin_list_chat_messages(
+  p_session_token text,
+  p_thread_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_or_mentor_user_id_from_token(p_session_token);
+
+  if not exists (select 1 from public.mentor_chat_threads where id = p_thread_id) then
+    raise exception 'Thread not found';
+  end if;
+
+  return coalesce(
+    (
+      select jsonb_agg(to_jsonb(m))
+      from (
+        select id, thread_id, sender_user_id, sender_role, message_text, created_at
+        from public.mentor_chat_messages
+        where thread_id = p_thread_id
+        order by created_at asc
+      ) m
+    ),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.app_admin_send_chat_message(
+  p_session_token text,
+  p_thread_id uuid,
+  p_message_text text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor public.app_users;
+  v_msg public.mentor_chat_messages;
+begin
+  v_actor := public.app_session_user_from_token(p_session_token);
+
+  if v_actor.role not in ('admin', 'mentor') then
+    raise exception 'Not authorized';
+  end if;
+
+  if not exists (select 1 from public.mentor_chat_threads where id = p_thread_id) then
+    raise exception 'Thread not found';
+  end if;
+
+  insert into public.mentor_chat_messages (
+    thread_id,
+    sender_user_id,
+    sender_role,
+    message_text
+  ) values (
+    p_thread_id,
+    v_actor.id,
+    v_actor.role,
+    trim(coalesce(p_message_text, ''))
+  )
+  returning * into v_msg;
+
+  update public.mentor_chat_threads
+  set
+    assigned_mentor_id = case
+      when v_actor.role = 'mentor' then v_actor.id
+      else assigned_mentor_id
+    end,
+    updated_at = now()
+  where id = p_thread_id;
+
+  return to_jsonb(v_msg);
+end;
+$$;
+
+revoke all on function public.app_session_user_from_token(text) from public;
+revoke all on function public.app_admin_or_mentor_user_id_from_token(text) from public;
+revoke all on function public.app_admin_create_user(text, text, text, text, text, boolean) from public;
+revoke all on function public.app_admin_list_team_users(text) from public;
+revoke all on function public.app_user_get_or_create_chat_thread(text) from public;
+revoke all on function public.app_user_list_chat_messages(text, uuid) from public;
+revoke all on function public.app_user_send_chat_message(text, uuid, text) from public;
+revoke all on function public.app_admin_list_chat_threads(text) from public;
+revoke all on function public.app_admin_list_chat_messages(text, uuid) from public;
+revoke all on function public.app_admin_send_chat_message(text, uuid, text) from public;
+
+grant execute on function public.app_session_user_from_token(text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_or_mentor_user_id_from_token(text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_create_user(text, text, text, text, text, boolean) to anon, authenticated, service_role;
+grant execute on function public.app_admin_list_team_users(text) to anon, authenticated, service_role;
+grant execute on function public.app_user_get_or_create_chat_thread(text) to anon, authenticated, service_role;
+grant execute on function public.app_user_list_chat_messages(text, uuid) to anon, authenticated, service_role;
+grant execute on function public.app_user_send_chat_message(text, uuid, text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_list_chat_threads(text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_list_chat_messages(text, uuid) to anon, authenticated, service_role;
+grant execute on function public.app_admin_send_chat_message(text, uuid, text) to anon, authenticated, service_role;
 
 -- Default Child Development Programs.
 delete from public.program_catalog
