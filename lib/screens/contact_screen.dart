@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 import '../utils/validators.dart';
+import 'chatbot_screen.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({super.key});
@@ -61,7 +62,19 @@ class _ContactScreenState extends State<ContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgWhite,
-      appBar: AppBar(title: const Text('Contact Us')),
+      appBar: AppBar(
+        title: const Text('Contact Us'),
+        actions: [
+          IconButton(
+            tooltip: 'Chat with Assistant',
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: _submitted ? _buildSuccess() : _buildForm(),
