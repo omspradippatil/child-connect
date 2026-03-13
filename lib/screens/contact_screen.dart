@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
+import '../utils/validators.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({super.key});
@@ -160,8 +161,7 @@ class _ContactScreenState extends State<ContactScreen> {
               labelText: 'Your Name',
               prefixIcon: Icon(Icons.person_outline, size: 20),
             ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+            validator: (v) => Validators.name(v, fieldName: 'Name'),
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -171,11 +171,7 @@ class _ContactScreenState extends State<ContactScreen> {
               labelText: 'Email Address',
               prefixIcon: Icon(Icons.email_outlined, size: 20),
             ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Email is required';
-              if (!v.contains('@')) return 'Enter a valid email';
-              return null;
-            },
+            validator: Validators.email,
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -186,9 +182,7 @@ class _ContactScreenState extends State<ContactScreen> {
               hintText: 'How can we help you?',
               alignLabelWithHint: true,
             ),
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? 'Message cannot be empty'
-                : null,
+            validator: (v) => Validators.minLength(v, 10, 'Message'),
           ),
           const SizedBox(height: 24),
           SizedBox(
