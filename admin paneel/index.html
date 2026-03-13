@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Child Connect Admin Panel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="authView" class="auth-wrap">
+    <div class="card auth-card">
+      <h1>Admin Panel</h1>
+      <p class="muted">Sign in with an admin account to control app content.</p>
+      <form id="loginForm" class="stack">
+        <input id="email" type="email" placeholder="Admin email" required />
+        <input id="password" type="password" placeholder="Password" required />
+        <button type="submit">Sign In</button>
+      </form>
+      <p id="authError" class="error"></p>
+    </div>
+  </div>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <h2>Child Connect</h2>
+      <button class="nav-btn active" data-tab="overview">Overview</button>
+      <button class="nav-btn" data-tab="children">Children</button>
+      <button class="nav-btn" data-tab="programs">Programs</button>
+      <button class="nav-btn" data-tab="requests">Requests</button>
+      <button id="logoutBtn" class="nav-btn danger">Logout</button>
+    </aside>
+
+    <main class="content">
+      <section id="overview" class="tab active">
+        <h3>Overview</h3>
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <section id="children" class="tab">
+        <div class="section-head">
+          <h3>Children Profiles</h3>
+          <button id="addChildBtn">Add Child</button>
+        </div>
+        <div id="childrenList" class="list"></div>
+      </section>
+
+      <section id="programs" class="tab">
+        <div class="section-head">
+          <h3>Programs</h3>
+          <button id="addProgramBtn">Add Program</button>
+        </div>
+        <div id="programsList" class="list"></div>
+      </section>
+
+      <section id="requests" class="tab">
+        <h3>Requests</h3>
+        <div class="request-grid">
+          <div>
+            <h4>Adoption</h4>
+            <div id="adoptionList" class="list"></div>
+          </div>
+          <div>
+            <h4>Mentor</h4>
+            <div id="mentorList" class="list"></div>
+          </div>
+          <div>
+            <h4>Contact</h4>
+            <div id="contactList" class="list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="editorDialog">
+    <form id="editorForm" method="dialog" class="stack"></form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

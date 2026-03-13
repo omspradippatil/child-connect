@@ -1,9 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
-import '../utils/app_data.dart';
 
-class ProgramsScreen extends StatelessWidget {
+class ProgramsScreen extends StatefulWidget {
   const ProgramsScreen({super.key});
+
+  @override
+  State<ProgramsScreen> createState() => _ProgramsScreenState();
+}
+
+class _ProgramsScreenState extends State<ProgramsScreen> {
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _programs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrograms();
+  }
+
+  Future<void> _loadPrograms() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'app_get_public_programs',
+      );
+      final raw = response as List? ?? const [];
+      setState(() {
+        _programs = raw
+            .map((entry) => Map<String, dynamic>.from(entry as Map))
+            .toList();
+      });
+    } on PostgrestException catch (error) {
+      setState(() => _error = error.message);
+    } catch (error) {
+      setState(() => _error = 'Failed to load programs. $error');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  IconData _iconFromKey(String key) {
+    switch (key.toLowerCase()) {
+      case 'palette':
+        return Icons.palette;
+      case 'sports':
+        return Icons.sports_handball;
+      case 'people':
+        return Icons.people;
+      case 'book':
+        return Icons.menu_book;
+      case 'run':
+        return Icons.directions_run;
+      case 'music':
+        return Icons.music_note;
+      default:
+        return Icons.school;
+    }
+  }
+
+  Color _parseColor(String hex) {
+    var value = hex.trim().replaceFirst('#', '');
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    final parsed = int.tryParse(value, radix: 16);
+    return parsed == null ? AppTheme.accentBlue : Color(parsed);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,17 +139,42 @@ class ProgramsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            ...AppData.programs.asMap().entries.map((entry) {
-              final int index = entry.key;
-              final Map<String, dynamic> program = entry.value;
-              return _ProgramCard(
-                number: index + 1,
-                title: program['title'] as String,
-                description: program['description'] as String,
-                icon: program['icon'] as IconData,
-                color: program['color'] as Color,
-              );
-            }),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppTheme.textMedium),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: _loadPrograms,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._programs.asMap().entries.map((entry) {
+                final int index = entry.key;
+                final Map<String, dynamic> program = entry.value;
+                return _ProgramCard(
+                  number: index + 1,
+                  title: (program['title'] ?? '').toString(),
+                  description: (program['description'] ?? '').toString(),
+                  icon: _iconFromKey((program['icon_key'] ?? '').toString()),
+                  color: _parseColor(
+                    (program['color_hex'] ?? '#4FA8D5').toString(),
+                  ),
+                );
+              }),
 
             const SizedBox(height: 20),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_data.dart';
 import '../widgets/child_card.dart';
@@ -14,19 +15,82 @@ class AdoptScreen extends StatefulWidget {
 
 class _AdoptScreenState extends State<AdoptScreen> {
   String _filter = 'All';
+  bool _loading = true;
+  String? _error;
+  List<ChildProfile> _children = [];
 
   final List<String> _filters = ['All', 'Boys', 'Girls', 'Favorites'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChildren();
+  }
+
+  Future<void> _loadChildren() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'app_get_public_children',
+      );
+      final raw = response as List? ?? const [];
+
+      final loaded = raw.map((entry) {
+        final row = Map<String, dynamic>.from(entry as Map);
+        final gender = (row['gender'] ?? 'other').toString().toLowerCase();
+
+        return ChildProfile(
+          id: row['id'].toString(),
+          name: (row['name'] ?? '').toString(),
+          age: (row['age'] as num?)?.toInt() ?? 1,
+          location: (row['location'] ?? '').toString(),
+          story: (row['story'] ?? '').toString(),
+          icon: gender == 'boy'
+              ? Icons.boy
+              : gender == 'girl'
+              ? Icons.girl
+              : Icons.child_care,
+          avatarColor: _parseColor(
+            (row['avatar_color_hex'] ?? '#FFD8B4').toString(),
+          ),
+        );
+      }).toList();
+
+      setState(() => _children = loaded);
+    } on PostgrestException catch (error) {
+      setState(() => _error = error.message);
+    } catch (error) {
+      setState(() => _error = 'Failed to load children. $error');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Color _parseColor(String hex) {
+    var value = hex.trim().replaceFirst('#', '');
+    if (value.length == 6) {
+      value = 'FF$value';
+    }
+    final parsed = int.tryParse(value, radix: 16);
+    return parsed == null ? const Color(0xFFFFD8B4) : Color(parsed);
+  }
 
   List<ChildProfile> get _filteredChildren {
     switch (_filter) {
       case 'Boys':
-        return AppData.children.where((c) => c.icon == Icons.boy).toList();
+        return _children.where((c) => c.icon == Icons.boy).toList();
       case 'Girls':
-        return AppData.children.where((c) => c.icon == Icons.girl).toList();
+        return _children.where((c) => c.icon == Icons.girl).toList();
       case 'Favorites':
-        return AppData.children.where((c) => c.isFavorite).toList();
+        return _children.where((c) => c.isFavorite).toList();
       default:
-        return AppData.children;
+        return _children;
     }
   }
 
@@ -86,7 +150,30 @@ class _AdoptScreenState extends State<AdoptScreen> {
           ),
           // Children list
           Expanded(
-            child: _filteredChildren.isEmpty
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppTheme.textMedium),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _loadChildren,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _filteredChildren.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

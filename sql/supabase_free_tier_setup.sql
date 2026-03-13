@@ -306,17 +306,418 @@ begin
 end;
 $$;
 
+-- Resolve admin user id from a valid session token.
+create or replace function public.app_admin_user_id_from_token(
+  p_session_token text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token_hash text;
+  v_user_id uuid;
+begin
+  if coalesce(p_session_token, '') = '' then
+    raise exception 'Not authorized';
+  end if;
+
+  v_token_hash := encode(extensions.digest(p_session_token, 'sha256'), 'hex');
+
+  select u.id
+  into v_user_id
+  from public.app_sessions s
+  join public.app_users u on u.id = s.user_id
+  where s.token_hash = v_token_hash
+    and s.revoked_at is null
+    and s.expires_at > now()
+    and u.role = 'admin'
+    and u.is_active = true
+  limit 1;
+
+  if v_user_id is null then
+    raise exception 'Not authorized';
+  end if;
+
+  return v_user_id;
+end;
+$$;
+
+-- Child profiles managed from admin panel.
+create table if not exists public.child_profiles (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(trim(name)) >= 2),
+  age int not null check (age between 1 and 18),
+  location text not null,
+  story text not null check (char_length(trim(story)) >= 10),
+  gender text not null default 'other' check (gender in ('boy', 'girl', 'other')),
+  avatar_color_hex text not null default '#FFD8B4',
+  is_active boolean not null default true,
+  display_order int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_child_profiles_active_order
+on public.child_profiles (is_active, display_order, created_at desc);
+
+-- Programs managed from admin panel.
+create table if not exists public.program_catalog (
+  id uuid primary key default gen_random_uuid(),
+  title text not null check (char_length(trim(title)) >= 2),
+  description text not null check (char_length(trim(description)) >= 10),
+  icon_key text not null default 'school',
+  color_hex text not null default '#4FA8D5',
+  is_active boolean not null default true,
+  display_order int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_program_catalog_active_order
+on public.program_catalog (is_active, display_order, created_at desc);
+
+-- Public APIs consumed by user app.
+create or replace function public.app_get_public_children()
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(to_jsonb(c)),
+    '[]'::jsonb
+  )
+  from (
+    select id, name, age, location, story, gender, avatar_color_hex, display_order
+    from public.child_profiles
+    where is_active = true
+    order by display_order asc, created_at desc
+  ) c;
+$$;
+
+create or replace function public.app_get_public_programs()
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(to_jsonb(p)),
+    '[]'::jsonb
+  )
+  from (
+    select id, title, description, icon_key, color_hex, display_order
+    from public.program_catalog
+    where is_active = true
+    order by display_order asc, created_at desc
+  ) p;
+$$;
+
+-- Admin APIs for content management.
+create or replace function public.app_admin_list_content(
+  p_session_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  return jsonb_build_object(
+    'children', coalesce(
+      (
+        select jsonb_agg(to_jsonb(c))
+        from (
+          select id, name, age, location, story, gender, avatar_color_hex, is_active, display_order, created_at
+          from public.child_profiles
+          order by display_order asc, created_at desc
+        ) c
+      ),
+      '[]'::jsonb
+    ),
+    'programs', coalesce(
+      (
+        select jsonb_agg(to_jsonb(p))
+        from (
+          select id, title, description, icon_key, color_hex, is_active, display_order, created_at
+          from public.program_catalog
+          order by display_order asc, created_at desc
+        ) p
+      ),
+      '[]'::jsonb
+    )
+  );
+end;
+$$;
+
+create or replace function public.app_admin_upsert_child(
+  p_session_token text,
+  p_id uuid,
+  p_name text,
+  p_age int,
+  p_location text,
+  p_story text,
+  p_gender text,
+  p_avatar_color_hex text,
+  p_is_active boolean,
+  p_display_order int
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.child_profiles;
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  if p_id is null then
+    insert into public.child_profiles (
+      name,
+      age,
+      location,
+      story,
+      gender,
+      avatar_color_hex,
+      is_active,
+      display_order
+    )
+    values (
+      trim(p_name),
+      p_age,
+      trim(p_location),
+      trim(p_story),
+      lower(trim(coalesce(p_gender, 'other'))),
+      coalesce(nullif(trim(p_avatar_color_hex), ''), '#FFD8B4'),
+      coalesce(p_is_active, true),
+      coalesce(p_display_order, 0)
+    )
+    returning * into v_row;
+  else
+    update public.child_profiles
+    set
+      name = trim(p_name),
+      age = p_age,
+      location = trim(p_location),
+      story = trim(p_story),
+      gender = lower(trim(coalesce(p_gender, 'other'))),
+      avatar_color_hex = coalesce(nullif(trim(p_avatar_color_hex), ''), '#FFD8B4'),
+      is_active = coalesce(p_is_active, true),
+      display_order = coalesce(p_display_order, display_order),
+      updated_at = now()
+    where id = p_id
+    returning * into v_row;
+  end if;
+
+  return to_jsonb(v_row);
+end;
+$$;
+
+create or replace function public.app_admin_upsert_program(
+  p_session_token text,
+  p_id uuid,
+  p_title text,
+  p_description text,
+  p_icon_key text,
+  p_color_hex text,
+  p_is_active boolean,
+  p_display_order int
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.program_catalog;
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  if p_id is null then
+    insert into public.program_catalog (
+      title,
+      description,
+      icon_key,
+      color_hex,
+      is_active,
+      display_order
+    )
+    values (
+      trim(p_title),
+      trim(p_description),
+      lower(trim(coalesce(p_icon_key, 'school'))),
+      coalesce(nullif(trim(p_color_hex), ''), '#4FA8D5'),
+      coalesce(p_is_active, true),
+      coalesce(p_display_order, 0)
+    )
+    returning * into v_row;
+  else
+    update public.program_catalog
+    set
+      title = trim(p_title),
+      description = trim(p_description),
+      icon_key = lower(trim(coalesce(p_icon_key, 'school'))),
+      color_hex = coalesce(nullif(trim(p_color_hex), ''), '#4FA8D5'),
+      is_active = coalesce(p_is_active, true),
+      display_order = coalesce(p_display_order, display_order),
+      updated_at = now()
+    where id = p_id
+    returning * into v_row;
+  end if;
+
+  return to_jsonb(v_row);
+end;
+$$;
+
+create or replace function public.app_admin_list_requests(
+  p_session_token text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  return jsonb_build_object(
+    'contacts', coalesce(
+      (
+        select jsonb_agg(to_jsonb(c))
+        from (
+          select id, full_name, email, message, status, created_at
+          from public.contact_messages
+          order by created_at desc
+          limit 100
+        ) c
+      ),
+      '[]'::jsonb
+    ),
+    'adoptions', coalesce(
+      (
+        select jsonb_agg(to_jsonb(a))
+        from (
+          select id, full_name, email, city, reason, status, created_at
+          from public.adoption_applications
+          order by created_at desc
+          limit 100
+        ) a
+      ),
+      '[]'::jsonb
+    ),
+    'mentors', coalesce(
+      (
+        select jsonb_agg(to_jsonb(m))
+        from (
+          select id, full_name, email, skills, availability, motivation, status, created_at
+          from public.mentor_applications
+          order by created_at desc
+          limit 100
+        ) m
+      ),
+      '[]'::jsonb
+    )
+  );
+end;
+$$;
+
+create or replace function public.app_admin_update_request_status(
+  p_session_token text,
+  p_request_type text,
+  p_id uuid,
+  p_status text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  if lower(p_request_type) = 'contact' then
+    update public.contact_messages
+    set status = p_status, updated_at = now()
+    where id = p_id;
+  elsif lower(p_request_type) = 'adoption' then
+    update public.adoption_applications
+    set status = p_status, updated_at = now()
+    where id = p_id;
+  elsif lower(p_request_type) = 'mentor' then
+    update public.mentor_applications
+    set status = p_status, updated_at = now()
+    where id = p_id;
+  else
+    raise exception 'Invalid request type';
+  end if;
+end;
+$$;
+
+create or replace function public.app_admin_delete_child(
+  p_session_token text,
+  p_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+  delete from public.child_profiles where id = p_id;
+end;
+$$;
+
+create or replace function public.app_admin_delete_program(
+  p_session_token text,
+  p_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+  delete from public.program_catalog where id = p_id;
+end;
+$$;
+
 revoke all on function public.app_sign_up(text, text, text) from public;
 revoke all on function public.app_sign_in(text, text) from public;
 revoke all on function public.app_get_session_user(text) from public;
 revoke all on function public.app_sign_out(text) from public;
 revoke all on function public.app_admin_dashboard_snapshot(text) from public;
+revoke all on function public.app_admin_user_id_from_token(text) from public;
+revoke all on function public.app_get_public_children() from public;
+revoke all on function public.app_get_public_programs() from public;
+revoke all on function public.app_admin_list_content(text) from public;
+revoke all on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, boolean, int) from public;
+revoke all on function public.app_admin_upsert_program(text, uuid, text, text, text, text, boolean, int) from public;
+revoke all on function public.app_admin_list_requests(text) from public;
+revoke all on function public.app_admin_update_request_status(text, text, uuid, text) from public;
+revoke all on function public.app_admin_delete_child(text, uuid) from public;
+revoke all on function public.app_admin_delete_program(text, uuid) from public;
 
 grant execute on function public.app_sign_up(text, text, text) to anon, authenticated, service_role;
 grant execute on function public.app_sign_in(text, text) to anon, authenticated, service_role;
 grant execute on function public.app_get_session_user(text) to anon, authenticated, service_role;
 grant execute on function public.app_sign_out(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_dashboard_snapshot(text) to anon, authenticated, service_role;
+grant execute on function public.app_get_public_children() to anon, authenticated, service_role;
+grant execute on function public.app_get_public_programs() to anon, authenticated, service_role;
+grant execute on function public.app_admin_list_content(text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, boolean, int) to anon, authenticated, service_role;
+grant execute on function public.app_admin_upsert_program(text, uuid, text, text, text, text, boolean, int) to anon, authenticated, service_role;
+grant execute on function public.app_admin_list_requests(text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_update_request_status(text, text, uuid, text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_delete_child(text, uuid) to anon, authenticated, service_role;
+grant execute on function public.app_admin_delete_program(text, uuid) to anon, authenticated, service_role;
 
 -- Contact form submissions.
 create table if not exists public.contact_messages (
@@ -375,6 +776,16 @@ create trigger set_app_users_updated_at
 before update on public.app_users
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_child_profiles_updated_at on public.child_profiles;
+create trigger set_child_profiles_updated_at
+before update on public.child_profiles
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_program_catalog_updated_at on public.program_catalog;
+create trigger set_program_catalog_updated_at
+before update on public.program_catalog
+for each row execute function public.set_updated_at();
+
 drop trigger if exists set_contact_messages_updated_at on public.contact_messages;
 create trigger set_contact_messages_updated_at
 before update on public.contact_messages
@@ -393,6 +804,8 @@ for each row execute function public.set_updated_at();
 -- RLS.
 alter table public.app_users enable row level security;
 alter table public.app_sessions enable row level security;
+alter table public.child_profiles enable row level security;
+alter table public.program_catalog enable row level security;
 alter table public.contact_messages enable row level security;
 alter table public.adoption_applications enable row level security;
 alter table public.mentor_applications enable row level security;
@@ -439,6 +852,22 @@ with check (true);
 drop policy if exists contact_messages_service_all on public.contact_messages;
 create policy contact_messages_service_all
 on public.contact_messages
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists child_profiles_service_all on public.child_profiles;
+create policy child_profiles_service_all
+on public.child_profiles
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists program_catalog_service_all on public.program_catalog;
+create policy program_catalog_service_all
+on public.program_catalog
 for all
 to service_role
 using (true)

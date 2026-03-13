@@ -11,9 +11,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -23,25 +21,8 @@ class _LoginScreenState extends State<LoginScreen>
   bool _busy = false;
   String? _error;
 
-  bool get _isAdminTab => _tabController.index == 1;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this)
-      ..addListener(() {
-        if (!_tabController.indexIsChanging) {
-          setState(() {
-            _error = null;
-            _isSignUp = false;
-          });
-        }
-      });
-  }
-
   @override
   void dispose() {
-    _tabController.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
@@ -72,13 +53,6 @@ class _LoginScreenState extends State<LoginScreen>
           password: _passwordCtrl.text,
         );
       }
-
-      if (_isAdminTab && !AuthService.isAdminUser(AuthService.currentUser)) {
-        await AuthService.signOut();
-        throw Exception(
-          'This account is not an admin account. Use user login instead.',
-        );
-      }
     } on PostgrestException catch (error) {
       setState(() => _error = error.message);
     } catch (error) {
@@ -92,11 +66,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final title = _isAdminTab ? 'Admin Access' : 'Welcome to Child Connect';
-    final subtitle = _isAdminTab
-        ? 'Sign in with your admin credentials to review platform submissions.'
-        : 'Sign in or create your account to continue your adoption journey.';
-
     return Scaffold(
       backgroundColor: const Color(0xFFF9F5EE),
       body: SafeArea(
@@ -121,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Kider Style Portal',
+                    'Child Connect',
                     style: TextStyle(
                       color: AppTheme.primaryOrange,
                       fontWeight: FontWeight.w800,
@@ -131,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    title,
+                    _isSignUp ? 'Create Your Account' : 'Welcome Back',
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
@@ -140,33 +109,13 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    subtitle,
+                    _isSignUp
+                        ? 'Sign up to continue your adoption journey.'
+                        : 'Sign in to continue.',
                     style: const TextStyle(
                       fontSize: 13,
                       height: 1.5,
                       color: AppTheme.textMedium,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: const Color(0xFFF3F4F8),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      indicator: BoxDecoration(
-                        color: AppTheme.primaryOrange,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      labelColor: Colors.white,
-                      unselectedLabelColor: AppTheme.textMedium,
-                      tabs: const [
-                        Tab(text: 'User Login'),
-                        Tab(text: 'Admin Login'),
-                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -174,22 +123,15 @@ class _LoginScreenState extends State<LoginScreen>
                     key: _formKey,
                     child: Column(
                       children: [
-                        if (_isSignUp && !_isAdminTab) ...[
+                        if (_isSignUp) ...[
                           TextFormField(
                             controller: _nameCtrl,
                             decoration: const InputDecoration(
                               labelText: 'Full Name',
                               prefixIcon: Icon(Icons.person_outline),
                             ),
-                            validator: (value) {
-                              if (!_isSignUp || _isAdminTab) {
-                                return null;
-                              }
-                              return Validators.name(
-                                value,
-                                fieldName: 'Full name',
-                              );
-                            },
+                            validator: (value) =>
+                                Validators.name(value, fieldName: 'Full name'),
                           ),
                           const SizedBox(height: 14),
                         ],
@@ -200,9 +142,7 @@ class _LoginScreenState extends State<LoginScreen>
                             labelText: 'Email Address',
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
-                          validator: (value) {
-                            return Validators.email(value);
-                          },
+                          validator: Validators.email,
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
@@ -212,12 +152,8 @@ class _LoginScreenState extends State<LoginScreen>
                             labelText: 'Password',
                             prefixIcon: Icon(Icons.lock_outline),
                           ),
-                          validator: (value) {
-                            return Validators.password(
-                              value,
-                              strict: _isSignUp,
-                            );
-                          },
+                          validator: (value) =>
+                              Validators.password(value, strict: _isSignUp),
                         ),
                         const SizedBox(height: 12),
                         if (_error != null)
@@ -255,36 +191,24 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                           ),
                         ),
-                        if (!_isAdminTab)
-                          TextButton(
-                            onPressed: _busy
-                                ? null
-                                : () {
-                                    setState(() {
-                                      _isSignUp = !_isSignUp;
-                                      _error = null;
-                                    });
-                                  },
-                            child: Text(
-                              _isSignUp
-                                  ? 'Already have an account? Sign in'
-                                  : 'New user? Create account',
-                            ),
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _isSignUp = !_isSignUp;
+                                    _error = null;
+                                  });
+                                },
+                          child: Text(
+                            _isSignUp
+                                ? 'Already have an account? Sign in'
+                                : 'New user? Create account',
                           ),
+                        ),
                       ],
                     ),
                   ),
-                  if (_isAdminTab)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Admin access is controlled by your role in the app_users table.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textLight,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
