@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ChatbotScreen extends StatefulWidget {
@@ -47,6 +45,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       // NOTE: Here you will integrate your actual API logic.
       // We are pulling an API_KEY from your .env file inside the app.
       final apiKey = dotenv.env['API_KEY'] ?? 'YOUR_DEFAULT_API_KEY';
+      assert(apiKey != 'YOUR_DEFAULT_API_KEY', 'Set API_KEY in your .env file (see .env.example)');
       
       // ----------- EXAMPLE API CALL (OpenAI / Any Generic Provider) -------------
       /*
