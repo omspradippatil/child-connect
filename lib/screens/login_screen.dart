@@ -17,6 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _aadhaarCtrl = TextEditingController();
+  final _panCtrl = TextEditingController();
 
   bool _isSignUp = false;
   bool _busy = false;
@@ -27,6 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _aadhaarCtrl.dispose();
+    _panCtrl.dispose();
     super.dispose();
   }
 
@@ -60,7 +64,11 @@ class _LoginScreenState extends State<LoginScreen> {
       // Run DigiLocker verification for all 'user' role accounts
       if (user.role.toLowerCase() == 'user') {
         if (!mounted) return;
-        final verified = await DigiLockerService.verifyUserIdentity(context);
+        final verified = await DigiLockerService.verifyUserIdentity(
+          context,
+          aadhaarNumber: _aadhaarCtrl.text.trim(),
+          panNumber: _panCtrl.text.trim(),
+        );
         if (!verified) {
           setState(() {
             _error =
@@ -173,6 +181,56 @@ class _LoginScreenState extends State<LoginScreen> {
                           validator: (value) =>
                               Validators.password(value, strict: _isSignUp),
                         ),
+                        if (!_isSignUp) ...[
+                          const SizedBox(height: 14),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'DigiLocker KYC (Mandatory)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textMedium,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _aadhaarCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Aadhaar Number',
+                              prefixIcon: Icon(Icons.credit_card_outlined),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty)
+                                return 'Aadhaar number is required';
+                              final clean = v.replaceAll(RegExp(r'\s+'), '');
+                              if (!DigiLockerService.isValidAadhaar(clean))
+                                return 'Enter a valid 12-digit Aadhaar number';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _panCtrl,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: const InputDecoration(
+                              labelText: 'PAN Number',
+                              prefixIcon: Icon(Icons.badge_outlined),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty)
+                                return 'PAN number is required';
+                              if (!DigiLockerService.isValidPan(
+                                v.trim().toUpperCase(),
+                              ))
+                                return 'Enter a valid PAN (e.g. ABCDE1234F)';
+                              return null;
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         if (_error != null)
                           Container(

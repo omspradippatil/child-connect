@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/app_theme.dart';
-import '../utils/app_data.dart';
 import 'adopt_screen.dart';
 import 'mission_screen.dart';
 import 'programs_screen.dart';
