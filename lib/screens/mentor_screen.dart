@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 
 class MentorScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _MentorScreenState extends State<MentorScreen> {
   final _bioCtrl = TextEditingController();
   String? _selectedArea;
   bool _submitted = false;
+  bool _loading = false;
 
   final List<String> _areas = [
     'Art & Creativity',
@@ -37,9 +39,37 @@ class _MentorScreenState extends State<MentorScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _submitted = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      await Supabase.instance.client.from('mentor_applications').insert({
+        'full_name': _nameCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'skills': _skillsCtrl.text.trim(),
+        'availability': _selectedArea,
+        'motivation': _bioCtrl.text.trim(),
+      });
+
+      if (mounted) {
+        setState(() => _submitted = true);
+      }
+    } on PostgrestException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to submit: ${error.message}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -115,7 +145,9 @@ class _MentorScreenState extends State<MentorScreen> {
             decoration: BoxDecoration(
               color: AppTheme.successGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppTheme.successGreen.withValues(alpha: 0.3),
+              ),
             ),
             child: const Row(
               children: [
@@ -252,11 +284,20 @@ class _MentorScreenState extends State<MentorScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submit,
+              onPressed: _loading ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.successGreen,
               ),
-              child: const Text('Submit Mentor Application'),
+              child: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Submit Mentor Application'),
             ),
           ),
         ],

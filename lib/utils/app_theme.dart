@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Colors
@@ -17,7 +18,7 @@ class AppTheme {
 
   static ThemeData get theme => ThemeData(
     useMaterial3: true,
-    fontFamily: 'Roboto',
+    textTheme: GoogleFonts.nunitoTextTheme(),
     colorScheme: const ColorScheme.light(
       primary: primaryOrange,
       secondary: accentBlue,
@@ -26,6 +27,12 @@ class AppTheme {
       onSecondary: Colors.white,
     ),
     scaffoldBackgroundColor: bgWhite,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
       foregroundColor: textDark,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 
 class ContactScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class _ContactScreenState extends State<ContactScreen> {
   final _emailCtrl = TextEditingController();
   final _msgCtrl = TextEditingController();
   bool _submitted = false;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -23,9 +25,34 @@ class _ContactScreenState extends State<ContactScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _submitted = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      await Supabase.instance.client.from('contact_messages').insert({
+        'full_name': _nameCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'message': _msgCtrl.text.trim(),
+      });
+
+      if (mounted) {
+        setState(() => _submitted = true);
+      }
+    } on PostgrestException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to send: ${error.message}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -167,8 +194,17 @@ class _ContactScreenState extends State<ContactScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submit,
-              child: const Text('Send Message'),
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Send Message'),
             ),
           ),
         ],

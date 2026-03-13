@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import 'main_shell.dart';
+import 'auth_gate.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (mounted) {
         Navigator.of(
           context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthGate()));
       }
     });
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_data.dart';
 
@@ -17,6 +18,7 @@ class _AdoptionFormScreenState extends State<AdoptionFormScreen> {
   final _emailCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
   bool _submitted = false;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -26,9 +28,35 @@ class _AdoptionFormScreenState extends State<AdoptionFormScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _submitted = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      await Supabase.instance.client.from('adoption_applications').insert({
+        'full_name': _nameCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'city': widget.child.location,
+        'reason': _reasonCtrl.text.trim(),
+      });
+
+      if (mounted) {
+        setState(() => _submitted = true);
+      }
+    } on PostgrestException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to submit: ${error.message}')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -200,8 +228,17 @@ class _AdoptionFormScreenState extends State<AdoptionFormScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submit,
-              child: const Text('Submit Adoption Request'),
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Submit Adoption Request'),
             ),
           ),
           const SizedBox(height: 12),

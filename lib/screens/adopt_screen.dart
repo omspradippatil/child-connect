@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_data.dart';
 import '../widgets/child_card.dart';
+import 'adoption_guide_screen.dart';
 import 'adoption_form_screen.dart';
 
 class AdoptScreen extends StatefulWidget {
@@ -40,7 +41,9 @@ class _AdoptScreenState extends State<AdoptScreen> {
             icon: const Icon(Icons.info_outline, color: AppTheme.accentBlue),
             tooltip: 'Adoption Guide',
             onPressed: () {
-              Navigator.of(context).pushNamed('/adoption-guide');
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AdoptionGuideScreen()),
+              );
             },
           ),
         ],
