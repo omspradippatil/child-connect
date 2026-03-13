@@ -72,7 +72,7 @@ class _ChildCardState extends State<ChildCard>
                       ? Image.network(
                           child.imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, _, __) => Container(
+                          errorBuilder: (context, _, _) => Container(
                             color: child.avatarColor,
                             child: Icon(
                               child.icon,
