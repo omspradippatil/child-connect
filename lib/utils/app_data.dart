@@ -6,6 +6,8 @@ class ChildProfile {
   final int age;
   final String location;
   final String story;
+  final String interests;
+  final String imageUrl;
   final IconData icon;
   final Color avatarColor;
   bool isFavorite;
@@ -16,6 +18,8 @@ class ChildProfile {
     required this.age,
     required this.location,
     required this.story,
+    this.interests = '',
+    this.imageUrl = '',
     required this.icon,
     required this.avatarColor,
     this.isFavorite = false,
@@ -30,6 +34,7 @@ class AppData {
       age: 5,
       location: 'Mumbai, Maharashtra',
       story: 'Arjun loves painting and dreams of becoming an artist someday.',
+      interests: 'Painting, puzzles, and storytelling',
       icon: Icons.boy,
       avatarColor: const Color(0xFFFFD8B4),
     ),
@@ -39,6 +44,7 @@ class AppData {
       age: 7,
       location: 'Pune, Maharashtra',
       story: 'Priya is a cheerful girl who loves books and storytelling.',
+      interests: 'Reading clubs and creative writing',
       icon: Icons.girl,
       avatarColor: const Color(0xFFFFB3C6),
     ),
@@ -48,6 +54,7 @@ class AppData {
       age: 4,
       location: 'Delhi',
       story: 'Ravi enjoys playing football and making new friends.',
+      interests: 'Outdoor play and team activities',
       icon: Icons.boy,
       avatarColor: const Color(0xFFB3E5FC),
     ),
@@ -57,6 +64,7 @@ class AppData {
       age: 8,
       location: 'Bengaluru, Karnataka',
       story: 'Ananya is curious and loves learning about science and nature.',
+      interests: 'Science kits and nature journaling',
       icon: Icons.girl,
       avatarColor: const Color(0xFFC8E6C9),
     ),
@@ -66,6 +74,7 @@ class AppData {
       age: 6,
       location: 'Jaipur, Rajasthan',
       story: 'Kabir loves music and plays the tabla at his shelter home.',
+      interests: 'Music practice and rhythm games',
       icon: Icons.boy,
       avatarColor: const Color(0xFFE1BEE7),
     ),
@@ -75,6 +84,7 @@ class AppData {
       age: 9,
       location: 'Chennai, Tamil Nadu',
       story: 'Diya is a bright student who wants to be a doctor one day.',
+      interests: 'Science projects and reading',
       icon: Icons.girl,
       avatarColor: const Color(0xFFFFF9C4),
     ),

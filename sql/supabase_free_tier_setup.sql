@@ -351,6 +351,8 @@ create table if not exists public.child_profiles (
   age int not null check (age between 1 and 18),
   location text not null,
   story text not null check (char_length(trim(story)) >= 10),
+  interests text,
+  image_url text,
   gender text not null default 'other' check (gender in ('boy', 'girl', 'other')),
   avatar_color_hex text not null default '#FFD8B4',
   is_active boolean not null default true,
@@ -358,6 +360,12 @@ create table if not exists public.child_profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.child_profiles
+add column if not exists interests text;
+
+alter table public.child_profiles
+add column if not exists image_url text;
 
 create index if not exists idx_child_profiles_active_order
 on public.child_profiles (is_active, display_order, created_at desc);
@@ -394,7 +402,7 @@ as $$
     '[]'::jsonb
   )
   from (
-    select id, name, age, location, story, gender, avatar_color_hex, display_order
+    select id, name, age, location, story, interests, image_url, gender, avatar_color_hex, display_order
     from public.child_profiles
     where is_active = true
     order by display_order asc, created_at desc
@@ -436,7 +444,7 @@ begin
       (
         select jsonb_agg(to_jsonb(c))
         from (
-          select id, name, age, location, story, gender, avatar_color_hex, is_active, display_order, created_at
+          select id, name, age, location, story, interests, image_url, gender, avatar_color_hex, is_active, display_order, created_at
           from public.child_profiles
           order by display_order asc, created_at desc
         ) c
@@ -465,6 +473,8 @@ create or replace function public.app_admin_upsert_child(
   p_age int,
   p_location text,
   p_story text,
+  p_interests text,
+  p_image_url text,
   p_gender text,
   p_avatar_color_hex text,
   p_is_active boolean,
@@ -486,6 +496,8 @@ begin
       age,
       location,
       story,
+      interests,
+      image_url,
       gender,
       avatar_color_hex,
       is_active,
@@ -496,6 +508,8 @@ begin
       p_age,
       trim(p_location),
       trim(p_story),
+      nullif(trim(coalesce(p_interests, '')), ''),
+      nullif(trim(coalesce(p_image_url, '')), ''),
       lower(trim(coalesce(p_gender, 'other'))),
       coalesce(nullif(trim(p_avatar_color_hex), ''), '#FFD8B4'),
       coalesce(p_is_active, true),
@@ -509,6 +523,8 @@ begin
       age = p_age,
       location = trim(p_location),
       story = trim(p_story),
+      interests = nullif(trim(coalesce(p_interests, '')), ''),
+      image_url = nullif(trim(coalesce(p_image_url, '')), ''),
       gender = lower(trim(coalesce(p_gender, 'other'))),
       avatar_color_hex = coalesce(nullif(trim(p_avatar_color_hex), ''), '#FFD8B4'),
       is_active = coalesce(p_is_active, true),
@@ -705,7 +721,7 @@ revoke all on function public.app_admin_user_id_from_token(text) from public;
 revoke all on function public.app_get_public_children() from public;
 revoke all on function public.app_get_public_programs() from public;
 revoke all on function public.app_admin_list_content(text) from public;
-revoke all on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, boolean, int) from public;
+revoke all on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, text, text, boolean, int) from public;
 revoke all on function public.app_admin_upsert_program(text, uuid, text, text, text, text, text, boolean, int) from public;
 revoke all on function public.app_admin_list_requests(text) from public;
 revoke all on function public.app_admin_update_request_status(text, text, uuid, text) from public;
@@ -720,7 +736,7 @@ grant execute on function public.app_admin_dashboard_snapshot(text) to anon, aut
 grant execute on function public.app_get_public_children() to anon, authenticated, service_role;
 grant execute on function public.app_get_public_programs() to anon, authenticated, service_role;
 grant execute on function public.app_admin_list_content(text) to anon, authenticated, service_role;
-grant execute on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, boolean, int) to anon, authenticated, service_role;
+grant execute on function public.app_admin_upsert_child(text, uuid, text, int, text, text, text, text, text, text, boolean, int) to anon, authenticated, service_role;
 grant execute on function public.app_admin_upsert_program(text, uuid, text, text, text, text, text, boolean, int) to anon, authenticated, service_role;
 grant execute on function public.app_admin_list_requests(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_update_request_status(text, text, uuid, text) to anon, authenticated, service_role;

@@ -184,6 +184,16 @@ textarea {
     margin-top: 8px;
 }
 
+.item-media {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 220px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
 .item-actions button {
     padding: 7px 10px;
     border-radius: 8px;

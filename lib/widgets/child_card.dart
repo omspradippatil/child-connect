@@ -62,18 +62,33 @@ class _ChildCardState extends State<ChildCard>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: child.avatarColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  child.icon,
-                  size: 44,
-                  color: AppTheme.textDark.withValues(alpha: 0.55),
+              // Profile image fallback to icon avatar if no image URL is available.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  width: 84,
+                  height: 84,
+                  child: child.imageUrl.trim().isNotEmpty
+                      ? Image.network(
+                          child.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, _, __) => Container(
+                            color: child.avatarColor,
+                            child: Icon(
+                              child.icon,
+                              size: 44,
+                              color: AppTheme.textDark.withValues(alpha: 0.55),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: child.avatarColor,
+                          child: Icon(
+                            child.icon,
+                            size: 44,
+                            color: AppTheme.textDark.withValues(alpha: 0.55),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -171,6 +186,29 @@ class _ChildCardState extends State<ChildCard>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (child.interests.trim().isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Activities: ${child.interests}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.accentBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,

@@ -109,13 +109,14 @@
     });
   }
 
-  function buildItem(title, subtitle, actionsHtml, badge) {
+  function buildItem(title, subtitle, actionsHtml, badge, mediaHtml = "") {
     return `
       <div class="item">
         <div class="item-head">
           <div>
             <div><strong>${escapeHtml(title)}</strong></div>
             <div class="muted">${escapeHtml(subtitle || "")}</div>
+            ${mediaHtml}
           </div>
           ${badge ? `<span class="badge">${escapeHtml(badge)}</span>` : ""}
         </div>
@@ -132,13 +133,17 @@
     childrenList.innerHTML = children
       .map((row) => {
         const title = `${row.name} (${row.age})`;
-        const subtitle = `${row.location} - ${row.story}`;
+        const details = row.interests ? ` | activities: ${row.interests}` : "";
+        const subtitle = `${row.location} - ${row.story}${details}`;
         const badge = row.is_active ? "active" : "inactive";
+        const mediaHtml = row.image_url
+          ? `<img class="item-media" src="${escapeHtml(row.image_url)}" alt="${escapeHtml(row.name)}" loading="lazy" />`
+          : "";
         const actions = `
           <button class="ghost" data-edit-child='${JSON.stringify(row)}'>Edit</button>
           <button class="danger" data-delete-child="${row.id}">Delete</button>
         `;
-        return buildItem(title, subtitle, actions, badge);
+        return buildItem(title, subtitle, actions, badge, mediaHtml);
       })
       .join("");
 
@@ -228,12 +233,15 @@
       <input name="age" placeholder="Age" type="number" min="1" max="18" value="${escapeHtml(row.age || 5)}" required />
       <input name="location" placeholder="Location" value="${escapeHtml(row.location || "")}" required />
       <textarea name="story" placeholder="Story" required>${escapeHtml(row.story || "")}</textarea>
+      <textarea name="interests" placeholder="Activities / What child likes to do" required>${escapeHtml(row.interests || "")}</textarea>
+      <input name="image_url" placeholder="Child image URL (https://...)" value="${escapeHtml(row.image_url || "")}" />
       <select name="gender">
         <option value="boy" ${(row.gender || "") === "boy" ? "selected" : ""}>Boy</option>
         <option value="girl" ${(row.gender || "") === "girl" ? "selected" : ""}>Girl</option>
         <option value="other" ${(row.gender || "") === "other" ? "selected" : ""}>Other</option>
       </select>
       <input name="avatar_color_hex" placeholder="#FFD8B4" value="${escapeHtml(row.avatar_color_hex || "#FFD8B4")}" />
+      <input name="display_order" placeholder="Display order" type="number" min="0" value="${escapeHtml(row.display_order || 0)}" />
       <label class="toggle-label">
         <input name="is_active" type="checkbox" class="toggle-input" ${checked} />
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -268,6 +276,8 @@
       p_age: Number(fd.get("age")),
       p_location: fd.get("location"),
       p_story: fd.get("story"),
+      p_interests: fd.get("interests"),
+      p_image_url: fd.get("image_url"),
       p_gender: fd.get("gender"),
       p_avatar_color_hex: fd.get("avatar_color_hex"),
       p_is_active: fd.get("is_active") === "on",

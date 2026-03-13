@@ -77,7 +77,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           const Text(
-                            'Kider Inspired',
+                            'Child Connect Network',
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -88,7 +88,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       const Text(
-                        'The Best Kindergarten Style\nExperience For Your Child',
+                        'Adoption, Care, And Support\nFor Every Child',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 26,
@@ -98,7 +98,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       const Text(
-                        'Smooth navigation, modern cards, and quick access to adoption, programs, and mentorship.',
+                        'Discover children available for adoption, learn their interests, and connect with mentors and support services.',
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 13,
@@ -136,7 +136,7 @@ class HomeScreen extends StatelessWidget {
                                 foregroundColor: Colors.white,
                                 side: const BorderSide(color: Colors.white),
                               ),
-                              child: const Text('Our Classes'),
+                              child: const Text('Programs'),
                             ),
                           ),
                         ],
@@ -151,7 +151,7 @@ class HomeScreen extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'School Facilities',
+                'Support Services',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,

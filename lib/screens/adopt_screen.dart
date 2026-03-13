@@ -51,6 +51,8 @@ class _AdoptScreenState extends State<AdoptScreen> {
           age: (row['age'] as num?)?.toInt() ?? 1,
           location: (row['location'] ?? '').toString(),
           story: (row['story'] ?? '').toString(),
+          interests: (row['interests'] ?? '').toString(),
+          imageUrl: (row['image_url'] ?? '').toString(),
           icon: gender == 'boy'
               ? Icons.boy
               : gender == 'girl'
@@ -110,7 +112,8 @@ class _AdoptScreenState extends State<AdoptScreen> {
         .where(
           (c) =>
               c.name.toLowerCase().contains(q) ||
-              c.location.toLowerCase().contains(q),
+              c.location.toLowerCase().contains(q) ||
+              c.interests.toLowerCase().contains(q),
         )
         .toList();
   }
