@@ -42,6 +42,8 @@ class AuthService {
 
   static AppUser? get currentUser => _session.value;
 
+  static Future<void> setSession(AppUser? user) => _setSession(user);
+
   static bool get isSignedIn => currentUser != null;
 
   static bool isAdminUser([AppUser? user]) {
@@ -75,7 +77,7 @@ class AuthService {
     }
   }
 
-  static Future<void> signUp({
+  static Future<AppUser> signUp({
     required String email,
     required String password,
     String? fullName,
@@ -94,10 +96,10 @@ class AuthService {
     if (user == null) {
       throw Exception('Sign up failed. Please try again.');
     }
-    await _setSession(user);
+    return user;
   }
 
-  static Future<void> signIn({
+  static Future<AppUser> signIn({
     required String email,
     required String password,
   }) async {
@@ -111,7 +113,7 @@ class AuthService {
     if (user == null) {
       throw Exception('Invalid credentials.');
     }
-    await _setSession(user);
+    return user;
   }
 
   static Future<void> signOut() async {

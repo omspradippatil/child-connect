@@ -42,34 +42,33 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      AppUser user;
       if (_isSignUp) {
-        await AuthService.signUp(
+        user = await AuthService.signUp(
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
           fullName: _nameCtrl.text,
         );
       } else {
-        await AuthService.signIn(
+        user = await AuthService.signIn(
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
         );
+      }
 
-        final signedInUser = AuthService.currentUser;
-        if (signedInUser != null && signedInUser.role.toLowerCase() == 'user') {
-          if (!mounted) {
-            return;
-          }
-          final verified = await DigiLockerService.verifyUserIdentity(context);
-          if (!verified) {
-            await AuthService.signOut();
-            setState(() {
-              _error =
-                  'Verification requires Police Clearance Certificate, Aadhaar Card, and PAN Card.';
-            });
-            return;
-          }
+      if (user.role.toLowerCase() == 'user') {
+        if (!mounted) return;
+        final verified = await DigiLockerService.verifyUserIdentity(context);
+        if (!verified) {
+          setState(() {
+            _error =
+                'Verification requires Police Clearance Certificate, Aadhaar Card, and PAN Card.';
+          });
+          return;
         }
       }
+
+      await AuthService.setSession(user);
     } on PostgrestException catch (error) {
       setState(() => _error = error.message);
     } catch (error) {
