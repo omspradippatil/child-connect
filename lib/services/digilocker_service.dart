@@ -51,8 +51,15 @@ class DigiLockerService {
   /// Used directly from the UI to encapsulate the verification logic.
   static Future<bool> verifyUserIdentity(BuildContext context) async {
     try {
-      // 1. Launch the actual DigiLocker URL
-      await launchDigiLockerLogin();
+      // 1. Launch the actual DigiLocker URL if a real client ID is provided.
+      // If using the placeholder, skip to the simulation dialog to avoid 400 errors.
+      if (_clientId != 'DEMO_CLIENT_ID') {
+        await launchDigiLockerLogin();
+      } else {
+        debugPrint(
+          'DigiLocker: Using placeholder DEMO_CLIENT_ID. Skipping actual URL launch and proceeding to simulation.',
+        );
+      }
 
       if (!context.mounted) return false;
 
