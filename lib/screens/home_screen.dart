@@ -8,6 +8,7 @@ import 'mentor_screen.dart';
 import 'mentor_chat_screen.dart';
 import 'contact_screen.dart';
 import 'chatbot_screen.dart';
+import 'parent_feedback_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -327,6 +328,74 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.divider),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0E7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.forum_rounded,
+                            color: AppTheme.primaryOrange,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Adoptive Parents Stories',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Read real parent journeys, share your own story, and like the most helpful stories. Most liked stories stay at the top.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textMedium,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ParentFeedbackScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                        label: const Text('Open Parents Stories'),
+                      ),
                     ),
                   ],
                 ),

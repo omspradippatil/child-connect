@@ -3,7 +3,8 @@ import 'home_screen.dart';
 import 'adopt_screen.dart';
 import 'programs_screen.dart';
 import 'contact_screen.dart';
-import 'adoption_guide_screen.dart';
+import 'parent_feedback_screen.dart';
+import 'about_us_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -19,7 +20,8 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     AdoptScreen(),
     ProgramsScreen(),
-    AdoptionGuideScreen(),
+    ParentFeedbackScreen(),
+    AboutUsScreen(),
     ContactScreen(),
   ];
 
@@ -40,9 +42,14 @@ class _MainShellState extends State<MainShell> {
       label: 'Programs',
     ),
     BottomNavigationBarItem(
-      icon: Icon(Icons.map_outlined),
-      activeIcon: Icon(Icons.map_rounded),
-      label: 'Guide',
+      icon: Icon(Icons.forum_outlined),
+      activeIcon: Icon(Icons.forum_rounded),
+      label: 'Stories',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.info_outline),
+      activeIcon: Icon(Icons.info_rounded),
+      label: 'About',
     ),
     BottomNavigationBarItem(
       icon: Icon(Icons.mail_outline),

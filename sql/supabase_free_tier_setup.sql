@@ -865,6 +865,29 @@ create table if not exists public.mentor_applications (
   updated_at timestamptz not null default now()
 );
 
+-- Parent feedback stories from families with completed adoptions.
+create table if not exists public.parent_feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  parent_names text not null check (char_length(trim(parent_names)) >= 3),
+  story_title text not null check (char_length(trim(story_title)) >= 5),
+  story_body text not null check (char_length(trim(story_body)) >= 50),
+  child_name text,
+  confirm_adopted boolean not null default false,
+  accept_terms boolean not null default false,
+  like_count int not null default 0 check (like_count >= 0),
+  is_published boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.parent_feedback_likes (
+  feedback_id uuid not null references public.parent_feedback(id) on delete cascade,
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (feedback_id, user_id)
+);
+
 -- Lightweight indexes for common admin sorting/filtering.
 create index if not exists idx_contact_messages_created_at on public.contact_messages (created_at desc);
 create index if not exists idx_contact_messages_status on public.contact_messages (status);
@@ -874,6 +897,8 @@ create index if not exists idx_adoption_applications_status on public.adoption_a
 
 create index if not exists idx_mentor_applications_created_at on public.mentor_applications (created_at desc);
 create index if not exists idx_mentor_applications_status on public.mentor_applications (status);
+create index if not exists idx_parent_feedback_ordering on public.parent_feedback (like_count desc, created_at desc);
+create index if not exists idx_parent_feedback_likes_user_id on public.parent_feedback_likes (user_id);
 
 -- Triggers to keep updated_at fresh.
 drop trigger if exists set_app_users_updated_at on public.app_users;
@@ -906,6 +931,11 @@ create trigger set_mentor_applications_updated_at
 before update on public.mentor_applications
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_parent_feedback_updated_at on public.parent_feedback;
+create trigger set_parent_feedback_updated_at
+before update on public.parent_feedback
+for each row execute function public.set_updated_at();
+
 -- RLS.
 alter table public.app_users enable row level security;
 alter table public.app_sessions enable row level security;
@@ -914,6 +944,8 @@ alter table public.program_catalog enable row level security;
 alter table public.contact_messages enable row level security;
 alter table public.adoption_applications enable row level security;
 alter table public.mentor_applications enable row level security;
+alter table public.parent_feedback enable row level security;
+alter table public.parent_feedback_likes enable row level security;
 
 alter table public.app_users
 drop constraint if exists app_users_role_check;
@@ -995,6 +1027,22 @@ with check (true);
 drop policy if exists mentor_applications_service_all on public.mentor_applications;
 create policy mentor_applications_service_all
 on public.mentor_applications
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists parent_feedback_service_all on public.parent_feedback;
+create policy parent_feedback_service_all
+on public.parent_feedback
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists parent_feedback_likes_service_all on public.parent_feedback_likes;
+create policy parent_feedback_likes_service_all
+on public.parent_feedback_likes
 for all
 to service_role
 using (true)
@@ -1474,6 +1522,181 @@ begin
 end;
 $$;
 
+create or replace function public.app_get_parent_feedback(
+  p_session_token text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_user public.app_users;
+begin
+  v_user_id := null;
+
+  if coalesce(p_session_token, '') <> '' then
+    begin
+      v_user := public.app_session_user_from_token(p_session_token);
+      v_user_id := v_user.id;
+    exception
+      when others then
+        v_user_id := null;
+    end;
+  end if;
+
+  return coalesce(
+    (
+      select jsonb_agg(to_jsonb(x))
+      from (
+        select
+          f.id,
+          f.parent_names,
+          f.story_title,
+          f.story_body,
+          coalesce(f.child_name, '') as child_name,
+          f.like_count,
+          f.created_at,
+          case
+            when v_user_id is null then false
+            else exists (
+              select 1
+              from public.parent_feedback_likes l
+              where l.feedback_id = f.id
+                and l.user_id = v_user_id
+            )
+          end as liked_by_me
+        from public.parent_feedback f
+        where f.is_published = true
+        order by f.like_count desc, f.created_at desc
+      ) x
+    ),
+    '[]'::jsonb
+  );
+end;
+$$;
+
+create or replace function public.app_submit_parent_feedback(
+  p_session_token text,
+  p_parent_names text,
+  p_story_title text,
+  p_story_body text,
+  p_child_name text default null,
+  p_confirm_adopted boolean default false,
+  p_accept_terms boolean default false
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users;
+  v_row public.parent_feedback;
+begin
+  v_user := public.app_session_user_from_token(p_session_token);
+
+  if v_user.role <> 'user' then
+    raise exception 'Only user accounts can submit parent feedback';
+  end if;
+
+  if coalesce(p_confirm_adopted, false) is false then
+    raise exception 'Please confirm this is from a completed adoption journey';
+  end if;
+
+  if coalesce(p_accept_terms, false) is false then
+    raise exception 'You must accept terms and conditions before submitting';
+  end if;
+
+  insert into public.parent_feedback (
+    user_id,
+    parent_names,
+    story_title,
+    story_body,
+    child_name,
+    confirm_adopted,
+    accept_terms
+  ) values (
+    v_user.id,
+    trim(coalesce(p_parent_names, '')),
+    trim(coalesce(p_story_title, '')),
+    trim(coalesce(p_story_body, '')),
+    nullif(trim(coalesce(p_child_name, '')), ''),
+    true,
+    true
+  )
+  returning * into v_row;
+
+  return jsonb_build_object(
+    'id', v_row.id,
+    'parent_names', v_row.parent_names,
+    'story_title', v_row.story_title,
+    'story_body', v_row.story_body,
+    'child_name', coalesce(v_row.child_name, ''),
+    'like_count', v_row.like_count,
+    'liked_by_me', false,
+    'created_at', v_row.created_at
+  );
+end;
+$$;
+
+create or replace function public.app_toggle_parent_feedback_like(
+  p_session_token text,
+  p_feedback_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users;
+  v_liked boolean;
+  v_like_count int;
+begin
+  v_user := public.app_session_user_from_token(p_session_token);
+
+  if not exists (
+    select 1
+    from public.parent_feedback f
+    where f.id = p_feedback_id
+      and f.is_published = true
+  ) then
+    raise exception 'Story not found';
+  end if;
+
+  if exists (
+    select 1
+    from public.parent_feedback_likes l
+    where l.feedback_id = p_feedback_id
+      and l.user_id = v_user.id
+  ) then
+    delete from public.parent_feedback_likes
+    where feedback_id = p_feedback_id
+      and user_id = v_user.id;
+    v_liked := false;
+  else
+    insert into public.parent_feedback_likes (feedback_id, user_id)
+    values (p_feedback_id, v_user.id);
+    v_liked := true;
+  end if;
+
+  select count(*)::int
+  into v_like_count
+  from public.parent_feedback_likes
+  where feedback_id = p_feedback_id;
+
+  update public.parent_feedback
+  set
+    like_count = v_like_count,
+    updated_at = now()
+  where id = p_feedback_id;
+
+  return jsonb_build_object('liked', v_liked, 'like_count', v_like_count);
+end;
+$$;
+
 revoke all on function public.app_session_user_from_token(text) from public;
 revoke all on function public.app_admin_or_mentor_user_id_from_token(text) from public;
 revoke all on function public.app_admin_create_user(text, text, text, text, text, boolean) from public;
@@ -1484,6 +1707,9 @@ revoke all on function public.app_user_send_chat_message(text, uuid, text) from 
 revoke all on function public.app_admin_list_chat_threads(text) from public;
 revoke all on function public.app_admin_list_chat_messages(text, uuid) from public;
 revoke all on function public.app_admin_send_chat_message(text, uuid, text) from public;
+revoke all on function public.app_get_parent_feedback(text) from public;
+revoke all on function public.app_submit_parent_feedback(text, text, text, text, text, boolean, boolean) from public;
+revoke all on function public.app_toggle_parent_feedback_like(text, uuid) from public;
 
 grant execute on function public.app_session_user_from_token(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_or_mentor_user_id_from_token(text) to anon, authenticated, service_role;
@@ -1495,6 +1721,9 @@ grant execute on function public.app_user_send_chat_message(text, uuid, text) to
 grant execute on function public.app_admin_list_chat_threads(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_list_chat_messages(text, uuid) to anon, authenticated, service_role;
 grant execute on function public.app_admin_send_chat_message(text, uuid, text) to anon, authenticated, service_role;
+grant execute on function public.app_get_parent_feedback(text) to anon, authenticated, service_role;
+grant execute on function public.app_submit_parent_feedback(text, text, text, text, text, boolean, boolean) to anon, authenticated, service_role;
+grant execute on function public.app_toggle_parent_feedback_like(text, uuid) to anon, authenticated, service_role;
 
 -- Default Child Development Programs.
 delete from public.program_catalog
