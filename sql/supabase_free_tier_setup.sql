@@ -682,6 +682,34 @@ begin
 end;
 $$;
 
+create or replace function public.app_admin_delete_request(
+  p_session_token text,
+  p_request_type text,
+  p_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.app_admin_user_id_from_token(p_session_token);
+
+  if lower(p_request_type) = 'contact' then
+    delete from public.contact_messages
+    where id = p_id;
+  elsif lower(p_request_type) = 'adoption' then
+    delete from public.adoption_applications
+    where id = p_id;
+  elsif lower(p_request_type) = 'mentor' then
+    delete from public.mentor_applications
+    where id = p_id;
+  else
+    raise exception 'Invalid request type';
+  end if;
+end;
+$$;
+
 create or replace function public.app_admin_delete_child(
   p_session_token text,
   p_id uuid
@@ -725,6 +753,7 @@ revoke all on function public.app_admin_upsert_child(text, uuid, text, int, text
 revoke all on function public.app_admin_upsert_program(text, uuid, text, text, text, text, text, boolean, int) from public;
 revoke all on function public.app_admin_list_requests(text) from public;
 revoke all on function public.app_admin_update_request_status(text, text, uuid, text) from public;
+revoke all on function public.app_admin_delete_request(text, text, uuid) from public;
 revoke all on function public.app_admin_delete_child(text, uuid) from public;
 revoke all on function public.app_admin_delete_program(text, uuid) from public;
 
@@ -740,6 +769,7 @@ grant execute on function public.app_admin_upsert_child(text, uuid, text, int, t
 grant execute on function public.app_admin_upsert_program(text, uuid, text, text, text, text, text, boolean, int) to anon, authenticated, service_role;
 grant execute on function public.app_admin_list_requests(text) to anon, authenticated, service_role;
 grant execute on function public.app_admin_update_request_status(text, text, uuid, text) to anon, authenticated, service_role;
+grant execute on function public.app_admin_delete_request(text, text, uuid) to anon, authenticated, service_role;
 grant execute on function public.app_admin_delete_child(text, uuid) to anon, authenticated, service_role;
 grant execute on function public.app_admin_delete_program(text, uuid) to anon, authenticated, service_role;
 

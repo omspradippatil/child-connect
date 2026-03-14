@@ -520,6 +520,7 @@
       const actions = `
         <select data-request-id="${row.id}" data-request-type="${requestType}">${options}</select>
         <button data-save-request="${row.id}" data-request-type="${requestType}" class="ghost">💾 Save</button>
+        <button data-delete-request="${row.id}" data-request-type="${requestType}" class="danger">🗑 Delete</button>
         <button class="expand-btn" data-expand="${detailId}">🔍 Details</button>
       `;
       const detail = `
@@ -559,6 +560,27 @@
           await loadRequests();
         } catch (err) {
           showToast(err.message || "Failed to update status", "error");
+        }
+      });
+    });
+
+    // Wire delete buttons
+    container.querySelectorAll("[data-delete-request]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-delete-request");
+        const reqType = btn.getAttribute("data-request-type");
+        if (!confirm("Delete this request record? This cannot be undone.")) return;
+        try {
+          await rpc("app_admin_delete_request", {
+            p_session_token: sessionToken,
+            p_request_type: reqType,
+            p_id: id
+          });
+          showToast("Request record deleted", "success");
+          await loadOverview();
+          await loadRequests();
+        } catch (err) {
+          showToast(err.message || "Delete failed", "error");
         }
       });
     });
