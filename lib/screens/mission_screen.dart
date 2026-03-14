@@ -167,8 +167,8 @@ class _MissionCardState extends State<_MissionCard> {
     return GestureDetector(
       onTap: () => setState(() => _expanded = !_expanded),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOutCubic,
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -221,7 +221,8 @@ class _MissionCardState extends State<_MissionCard> {
                       ),
                       AnimatedRotation(
                         turns: _expanded ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 220),
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeInOutCubic,
                         child: Icon(
                           Icons.keyboard_arrow_down_rounded,
                           color: widget.color,
@@ -246,7 +247,10 @@ class _MissionCardState extends State<_MissionCard> {
                     crossFadeState: _expanded
                         ? CrossFadeState.showSecond
                         : CrossFadeState.showFirst,
-                    duration: const Duration(milliseconds: 220),
+                    duration: const Duration(milliseconds: 280),
+                    firstCurve: Curves.easeOut,
+                    secondCurve: Curves.easeInOutCubic,
+                    sizeCurve: Curves.easeInOutCubic,
                   ),
                 ],
               ),

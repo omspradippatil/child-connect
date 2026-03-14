@@ -29,12 +29,19 @@ class _ChildCardState extends State<ChildCard>
     super.initState();
     _heartCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 240),
     );
-    _heartScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.35), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.35, end: 1.0), weight: 50),
-    ]).animate(CurvedAnimation(parent: _heartCtrl, curve: Curves.easeOut));
+    _heartScale =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.22), weight: 45),
+          TweenSequenceItem(tween: Tween(begin: 1.22, end: 1.0), weight: 55),
+        ]).animate(
+          CurvedAnimation(
+            parent: _heartCtrl,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInOut,
+          ),
+        );
   }
 
   @override
@@ -111,21 +118,37 @@ class _ChildCardState extends State<ChildCard>
                         // Animated heart
                         GestureDetector(
                           onTap: _onHeartTap,
-                          child: AnimatedBuilder(
-                            animation: _heartScale,
-                            builder: (context, _) => Transform.scale(
-                              scale: _heartScale.value,
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                child: Icon(
-                                  child.isFavorite
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  key: ValueKey(child.isFavorite),
-                                  color: child.isFavorite
-                                      ? AppTheme.heartRed
-                                      : AppTheme.textLight,
-                                  size: 22,
+                          child: RepaintBoundary(
+                            child: AnimatedBuilder(
+                              animation: _heartScale,
+                              builder: (context, _) => Transform.scale(
+                                scale: _heartScale.value,
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 240),
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
+                                  transitionBuilder: (widget, animation) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: ScaleTransition(
+                                        scale: Tween<double>(
+                                          begin: 0.92,
+                                          end: 1.0,
+                                        ).animate(animation),
+                                        child: widget,
+                                      ),
+                                    );
+                                  },
+                                  child: Icon(
+                                    child.isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    key: ValueKey(child.isFavorite),
+                                    color: child.isFavorite
+                                        ? AppTheme.heartRed
+                                        : AppTheme.textLight,
+                                    size: 22,
+                                  ),
                                 ),
                               ),
                             ),

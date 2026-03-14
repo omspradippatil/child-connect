@@ -1,39 +1,142 @@
-📌 Project Overview
+# Child Connect
 
-Child Connect is a web application designed to simplify and support the child adoption process by connecting orphanages, adoption agencies, and potential adoptive parents on a single digital platform.
+Child Connect is a Flutter-based adoption awareness and support platform designed to connect children, families, mentors, and support services in one mobile-first experience.
 
-The application provides a secure and organized environment where verified users can explore adoption opportunities, submit adoption requests, and manage adoption-related information efficiently.
+The project focuses on making child support and adoption workflows more structured, accessible, and user-friendly through a clean app experience and secure backend integration.
 
-The goal of this web application is to make the adoption process more transparent, accessible, and structured, while ensuring proper management of child records and adoption procedures.
+## Features
 
-🎯 Objectives
+- User authentication flow with session handling
+- Child discovery and profile cards
+- Adoption guidance and adoption form flow
+- Mentor support and mentor chat screens
+- Contact and mission screens
+- Programs and resources listing
+- In-app chatbot assistance
+- Cross-platform Flutter app (Android, iOS, Web support structure present)
+- Branded launcher icon support for Android and iOS
 
-1. To develop a centralized web application for managing child adoption information.
+## Tech Stack
 
-2. To help prospective parents easily find children available for adoption.
+- Flutter (Dart)
+- Supabase (`supabase_flutter`)
+- Environment config via `flutter_dotenv`
+- Shared local state with `shared_preferences`
+- Networking with `http`
+- Media picking with `image_picker`
+- External links with `url_launcher`
+- Typography with `google_fonts`
 
-3. To assist orphanages and administrators in managing child records.
+## Project Structure
 
-4. To streamline the adoption request and approval process.
+Main folders:
 
-5. To maintain transparency and organization within the adoption workflow.
+- `lib/`
+	- `main.dart` - App entry point
+	- `screens/` - UI screens and flows
+	- `services/` - Business logic and integrations
+	- `utils/` - Theme, app constants, shared helpers
+	- `widgets/` - Reusable UI components
+- `test/` - Widget and unit tests
+- `android/` - Android native project
+- `ios/` - iOS native project
+- `web/` - Web host files
+- `sql/` - SQL scripts (Supabase setup)
+- `Assets/` - Project media assets and logo
 
-✨ Key Features
+## Prerequisites
 
-1. User Registration & Login – Secure authentication system for users and administrators.
+Before running locally, ensure you have:
 
-2. Admin Dashboard – Allows administrators to manage children records and adoption requests.
+- Flutter SDK installed and added to PATH
+- Dart SDK (bundled with Flutter)
+- Android Studio / Xcode (for mobile builds)
+- A configured Supabase project
 
-3. Child Profiles – Displays details such as age, gender, and background information.
+## Environment Variables
 
-4. Adoption Request System – Enables users to send requests for adopting a child.
+Create a `.env` file in the project root with:
 
-5. Database Management – Stores and manages adoption and user data securely.
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-6. Responsive Interface – The web application can be accessed through different devices.
+The app loads these values during startup and will fail fast if they are missing.
 
-🛠️ Technologies Used
+## Getting Started
 
-📂 Project Structure
+1. Install dependencies:
 
-And app is developed 
+```bash
+flutter pub get
+```
+
+2. Run the app:
+
+```bash
+flutter run
+```
+
+## Quality Checks
+
+Run static analysis:
+
+```bash
+flutter analyze
+```
+
+Run tests:
+
+```bash
+flutter test
+```
+
+Create debug APK:
+
+```bash
+flutter build apk --debug
+```
+
+## Build Commands
+
+Android release build:
+
+```bash
+flutter build apk --release
+```
+
+iOS release build (macOS only):
+
+```bash
+flutter build ios --release
+```
+
+## Launcher Icon
+
+Launcher icons are configured via `flutter_launcher_icons` in `pubspec.yaml`.
+
+To regenerate icons:
+
+```bash
+dart run flutter_launcher_icons
+```
+
+Current configured source image:
+
+- `Assets/logo.jpeg`
+
+## Backend Setup Notes
+
+- Supabase is required for auth and backend data operations.
+- SQL setup script is available in `sql/supabase_free_tier_setup.sql`.
+
+## Version
+
+Current app version from `pubspec.yaml`:
+
+- `2.0.0+1`
+
+## License
+
+This project is distributed under the license defined in the root `LICENSE` file.
