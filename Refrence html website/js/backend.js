@@ -77,6 +77,139 @@
     });
   }
 
+  function bindMentorForm() {
+    const form = document.getElementById("mentorApplyForm");
+    if (!form || form.dataset.backendBound === "true") {
+      return;
+    }
+
+    form.dataset.backendBound = "true";
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      withSubmitState(form, true);
+
+      try {
+        const fullName = (form.querySelector('input[name="full_name"]')?.value || "").trim();
+        const email = (form.querySelector('input[name="email"]')?.value || "").trim();
+        const phone = (form.querySelector('input[name="phone"]')?.value || "").trim();
+        const skills = (form.querySelector('input[name="skills"]')?.value || "").trim();
+        const availability = (form.querySelector('select[name="availability"]')?.value || "").trim();
+        const motivation = (form.querySelector('textarea[name="motivation"]')?.value || "").trim();
+
+        await insert("mentor_applications", {
+          full_name: fullName,
+          email,
+          phone,
+          skills,
+          availability,
+          motivation
+        });
+
+        form.reset();
+        alert("Mentor application submitted successfully.");
+      } catch (error) {
+        alert(`Unable to submit mentor application: ${error.message || "Unknown error"}`);
+      } finally {
+        withSubmitState(form, false);
+      }
+    });
+  }
+
+  async function loadProgramsGrid() {
+    const grid = document.getElementById("programsGrid");
+    if (!grid) {
+      return;
+    }
+
+    const iconMap = {
+      palette: "fa-palette",
+      sports: "fa-running",
+      people: "fa-users",
+      book: "fa-book-open",
+      run: "fa-heartbeat",
+      music: "fa-music",
+      school: "fa-school"
+    };
+
+    try {
+      const rows = await rpc("app_get_public_programs");
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return;
+      }
+
+      grid.innerHTML = rows.map((program) => {
+        const title = String(program.title || "Program");
+        const description = String(program.description || "");
+        const iconKey = String(program.icon_key || "school").toLowerCase();
+        const iconClass = iconMap[iconKey] || "fa-school";
+        const color = String(program.color_hex || "#4FA8D5");
+
+        return `
+          <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay="0.1s">
+            <div class="classes-item">
+              <div class="bg-light rounded-circle w-75 mx-auto p-3 d-flex align-items-center justify-content-center" style="min-height: 190px;">
+                <i class="fas ${iconClass} fa-3x" style="color: ${color};"></i>
+              </div>
+              <div class="bg-light rounded p-4 pt-5 mt-n5">
+                <a class="d-block text-center h3 mt-3 mb-4">${title}</a>
+                <p class="text-center mb-4">${description}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    } catch (error) {
+      console.error("Unable to load programs", error);
+    }
+  }
+
+  function formatDate(dateLike) {
+    const date = new Date(dateLike || "");
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    return date.toLocaleDateString();
+  }
+
+  async function loadParentFeedbackGrid() {
+    const grid = document.getElementById("feedbackGrid");
+    if (!grid) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("website_session_token") || "";
+      const rows = await rpc("app_get_parent_feedback", { p_session_token: token });
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return;
+      }
+
+      grid.innerHTML = rows.slice(0, 6).map((item) => {
+        const parentNames = String(item.parent_names || "Parent");
+        const storyTitle = String(item.story_title || "Family Story");
+        const storyBody = String(item.story_body || "");
+        const childName = String(item.child_name || "");
+        const summary = storyBody.length > 170 ? `${storyBody.slice(0, 167)}...` : storyBody;
+        const createdAt = formatDate(item.created_at);
+
+        return `
+          <div class="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay="0.1s">
+            <div class="team-item position-relative">
+              <div class="team-text" style="position: static; opacity: 1; transform: none; padding: 24px; min-height: 280px;">
+                <h3>${parentNames}</h3>
+                <p><strong>${storyTitle}</strong></p>
+                <p>${summary}</p>
+                <p style="font-size: 13px; margin-bottom: 0;">${childName ? `Child: ${childName} | ` : ""}${createdAt}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    } catch (error) {
+      console.error("Unable to load parent feedback", error);
+    }
+  }
+
   function normalizeAgeRange(age) {
     const parsed = Number(age);
     if (!Number.isFinite(parsed)) {
@@ -249,7 +382,7 @@
 
   function bindAppointmentForms() {
     const forms = Array.from(document.querySelectorAll("form")).filter((form) => {
-      return form.querySelector("#gname") && form.querySelector("#gmail") && form.querySelector("#message");
+      return form.querySelector("#gname") && form.querySelector("#gmail") && form.querySelector("#message") && !form.querySelector("#reason");
     });
 
     forms.forEach((form) => {
@@ -297,11 +430,69 @@
     });
   }
 
+  function bindAdoptionInquiryForms() {
+    const forms = Array.from(document.querySelectorAll("form")).filter((form) => {
+      return form.querySelector("#gname") && form.querySelector("#gmail") && form.querySelector("#reason");
+    });
+
+    forms.forEach((form) => {
+      if (form.dataset.backendBound === "true") {
+        return;
+      }
+      form.dataset.backendBound = "true";
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        withSubmitState(form, true);
+
+        try {
+          const fullName = form.querySelector("#gname")?.value?.trim() || "";
+          const email = form.querySelector("#gmail")?.value?.trim() || "";
+          const preferredChildName = form.querySelector("#cname")?.value?.trim() || "";
+          const preferredAge = form.querySelector("#cage")?.value?.trim() || "";
+          const reason = form.querySelector("#reason")?.value?.trim() || "";
+          const extraMessage = form.querySelector("#message")?.value?.trim() || "";
+          const agreed = !!form.querySelector("#agree")?.checked;
+
+          if (!agreed) {
+            throw new Error("Please agree to the adoption guidelines and terms.");
+          }
+
+          const combinedReason = [reason, extraMessage].filter(Boolean).join(". ");
+          if (combinedReason.length < 20) {
+            throw new Error("Please provide a more detailed reason (at least 20 characters).");
+          }
+
+          await insert("adoption_applications", {
+            full_name: fullName,
+            email,
+            preferred_age_range: preferredAge || null,
+            preferred_gender: "any",
+            reason: combinedReason,
+            motivation_for_adoption: combinedReason,
+            family_background: preferredChildName ? `Preferred child: ${preferredChildName}` : null
+          });
+
+          form.reset();
+          alert("Adoption inquiry submitted successfully.");
+        } catch (error) {
+          alert(`Unable to submit adoption inquiry: ${error.message || "Unknown error"}`);
+        } finally {
+          withSubmitState(form, false);
+        }
+      });
+    });
+  }
+
   async function init() {
     await loadChildrenIntoAdoptCards();
+    await loadProgramsGrid();
+    await loadParentFeedbackGrid();
     bindAdoptButtons();
     bindAdoptionForm();
     bindContactForm();
+    bindMentorForm();
+    bindAdoptionInquiryForms();
     bindAppointmentForms();
   }
 

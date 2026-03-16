@@ -102,11 +102,38 @@
                         </div>
                         <div class="col-lg-6 wow fadeIn" data-wow-delay="0.5s">
                             <div class="h-100 d-flex flex-column justify-content-center p-5">
-                                <h1 class="mb-4">Become A Teacher</h1>
-                                <p class="mb-4">Tempor erat elitr rebum at clita. Diam dolor diam ipsum sit. Aliqu diam amet diam et eos.
-                                    Clita erat ipsum et lorem et sit, sed stet lorem sit clita duo justo magna dolore erat amet
-                                </p>
-                                <a class="btn btn-primary py-3 px-5" href="">Get Started Now<i class="fa fa-arrow-right ms-2"></i></a>
+                                <h1 class="mb-3">Become a Mentor</h1>
+                                <p class="mb-4">Apply to mentor children on the same backend used by the app. Your profile will appear in the admin request dashboard.</p>
+                                <form id="mentorApplyForm">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6">
+                                            <input type="text" class="form-control border-0" name="full_name" placeholder="Full Name" required>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <input type="email" class="form-control border-0" name="email" placeholder="Email" required>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <input type="tel" class="form-control border-0" name="phone" placeholder="Phone Number">
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <input type="text" class="form-control border-0" name="skills" placeholder="Skills (Art, Math, Music...)" required>
+                                        </div>
+                                        <div class="col-12">
+                                            <select class="form-control border-0" name="availability" required>
+                                                <option value="" selected disabled>Availability</option>
+                                                <option value="Weekdays">Weekdays</option>
+                                                <option value="Weekends">Weekends</option>
+                                                <option value="Flexible">Flexible</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <textarea class="form-control border-0" name="motivation" placeholder="Why do you want to mentor?" style="height: 100px" required></textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <button class="btn btn-primary py-3 px-5" type="submit">Submit Mentor Application<i class="fa fa-arrow-right ms-2"></i></button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -211,6 +238,9 @@
 
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/backend.js"></script>
 </body>
 
 </html>
