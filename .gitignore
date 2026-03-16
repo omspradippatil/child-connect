@@ -48,5 +48,5 @@ app.*.map.json
 /android/app/release
 
 # Local reference static website folder
-/Refrence html website/
+
 env
