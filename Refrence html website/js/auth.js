@@ -4,6 +4,10 @@
     return;
   }
 
+  if (window.location.protocol === "file:") {
+    alert("Open website through a local server (for example VS Code Live Server). Direct file:// mode can block Supabase requests.");
+  }
+
   const supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
   function setSessionToken(token) {
@@ -22,6 +26,22 @@
     return data;
   }
 
+  function setButtonLoading(button, loading, loadingText) {
+    if (!button) return;
+    button.disabled = loading;
+    if (loading) {
+      button.dataset.originalText = button.textContent || "Submit";
+      button.textContent = loadingText;
+    } else if (button.dataset.originalText) {
+      button.textContent = button.dataset.originalText;
+      delete button.dataset.originalText;
+    }
+  }
+
+  function validateEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
   const registerForm = document.getElementById("registerForm") || document.querySelector('form[action="register.php"]');
   if (registerForm) {
     registerForm.addEventListener("submit", async (event) => {
@@ -32,15 +52,28 @@
       const password = registerForm.querySelector('input[name="password"]')?.value || "";
       const confirmPassword = registerForm.querySelector('input[name="confirm_password"]')?.value || "";
 
+      if (fullName.length < 2) {
+        alert("Please enter your full name.");
+        return;
+      }
+
+      if (!validateEmail(email)) {
+        alert("Please enter a valid email address.");
+        return;
+      }
+
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return;
+      }
+
       if (password !== confirmPassword) {
         alert("Password and confirm password do not match.");
         return;
       }
 
       const submitButton = registerForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = true;
-      }
+      setButtonLoading(submitButton, true, "Creating account...");
 
       try {
         const response = await rpc("app_sign_up", {
@@ -54,14 +87,12 @@
           setSessionToken(token);
         }
 
-        alert("Registration successful. Your account is created on the same backend as the app.");
-        window.location.href = "admin-login.html";
+        alert("Account created successfully. You are now signed in.");
+        window.location.href = "index.html";
       } catch (error) {
         alert(`Registration failed: ${error.message || "Unknown error"}`);
       } finally {
-        if (submitButton) {
-          submitButton.disabled = false;
-        }
+        setButtonLoading(submitButton, false, "");
       }
     });
   }
@@ -74,10 +105,18 @@
       const email = loginForm.querySelector('input[name="email"]')?.value?.trim() || "";
       const password = loginForm.querySelector('input[name="password"]')?.value || "";
 
-      const submitButton = loginForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = true;
+      if (!validateEmail(email)) {
+        alert("Please enter a valid email address.");
+        return;
       }
+
+      if (password.length < 6) {
+        alert("Please enter your password.");
+        return;
+      }
+
+      const submitButton = loginForm.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, true, "Signing in...");
 
       try {
         const response = await rpc("app_sign_in", {
@@ -93,18 +132,18 @@
           throw new Error("Session token missing in login response.");
         }
 
-        if (role !== "admin" && role !== "mentor") {
-          throw new Error("This panel is only for admin or mentor accounts.");
+        setSessionToken(token);
+
+        if (role === "admin" || role === "mentor") {
+          window.location.href = "../admin paneel/index.html";
+          return;
         }
 
-        setSessionToken(token);
-        window.location.href = "../admin paneel/index.html";
+        window.location.href = "index.html";
       } catch (error) {
         alert(`Login failed: ${error.message || "Unknown error"}`);
       } finally {
-        if (submitButton) {
-          submitButton.disabled = false;
-        }
+        setButtonLoading(submitButton, false, "");
       }
     });
   }

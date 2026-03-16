@@ -318,7 +318,7 @@
   }
 
   function bindAdoptionForm() {
-    const form = document.querySelector("#adoptionForm form");
+    const form = document.querySelector('form[data-form="adoption-application"]') || document.querySelector("#adoptionForm form");
     if (!form || form.dataset.backendBound === "true") {
       return;
     }
@@ -381,9 +381,12 @@
   }
 
   function bindAppointmentForms() {
-    const forms = Array.from(document.querySelectorAll("form")).filter((form) => {
+    const markedForms = Array.from(document.querySelectorAll('form[data-form="appointment"]'));
+    const forms = markedForms.length > 0
+      ? markedForms
+      : Array.from(document.querySelectorAll("form")).filter((form) => {
       return form.querySelector("#gname") && form.querySelector("#gmail") && form.querySelector("#message") && !form.querySelector("#reason");
-    });
+      });
 
     forms.forEach((form) => {
       if (form.dataset.backendBound === "true") {
@@ -431,9 +434,12 @@
   }
 
   function bindAdoptionInquiryForms() {
-    const forms = Array.from(document.querySelectorAll("form")).filter((form) => {
+    const markedForms = Array.from(document.querySelectorAll('form[data-form="adoption-inquiry"]'));
+    const forms = markedForms.length > 0
+      ? markedForms
+      : Array.from(document.querySelectorAll("form")).filter((form) => {
       return form.querySelector("#gname") && form.querySelector("#gmail") && form.querySelector("#reason");
-    });
+      });
 
     forms.forEach((form) => {
       if (form.dataset.backendBound === "true") {
