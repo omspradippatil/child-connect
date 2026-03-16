@@ -653,72 +653,6 @@
 </div>
 
 
-<!-- Add this right after your form's closing div -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Handle form submission
-    const form = document.querySelector('#adoptionForm form');
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Get form data
-        const firstName = document.getElementById('firstName').value;
-        const lastName = document.getElementById('lastName').value;
-        const selectedChild = sessionStorage.getItem('selectedChild') || 'a child';
-        
-        // Show success message
-        alert(`Thank you ${firstName} ${lastName} for submitting your application to adopt ${selectedChild}. We will contact you soon.`);
-        
-        // Reset form and scroll to top
-        this.reset();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    // Add click handlers to all adopt buttons
-    document.querySelectorAll('.adopt-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const card = this.closest('.adopt-card');
-            const childName = card.querySelector('h3').textContent.split(',')[0];
-            handleAdoptClick(childName);
-        });
-    });
-});
-
-function handleAdoptClick(childName) {
-    const confirmation = confirm(`Would you like to start the adoption process for ${childName}?`);
-    if (confirmation) {
-        // Store selected child's name
-        sessionStorage.setItem('selectedChild', childName);
-        
-        // Update form title
-        document.querySelector('#adoptionForm h1').innerHTML = 
-            `Adoption Application Form for ${childName}`;
-        
-        // Pre-fill child preferences
-        const childInfo = getChildInfo(childName);
-        if (childInfo) {
-            document.getElementById('childAge').value = childInfo.ageGroup;
-            document.getElementById('childGender').value = childInfo.gender;
-        }
-        
-        // Scroll to form
-        document.getElementById('adoptionForm').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-function getChildInfo(name) {
-    const childrenInfo = {
-        'Aarav': { ageGroup: '3-5', gender: 'male' },
-        'Ishita': { ageGroup: '6-8', gender: 'female' },
-        'Kabir': { ageGroup: '6-8', gender: 'male' },
-        'Ananya': { ageGroup: '6-8', gender: 'female' },
-        'Rohan': { ageGroup: '3-5', gender: 'male' },
-        'Meera': { ageGroup: '6-8', gender: 'female' }
-    };
-    return childrenInfo[name];
-}
-</script>
-
 <style>
 /* Enhanced form styles */
 .form-control:focus {
@@ -874,6 +808,9 @@ function getChildInfo(name) {
 
     <!-- Template Javascript -->
     <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/backend.js"></script>
 </body>
 
 </html>
