@@ -1,4 +1,4 @@
-# Child Connect
+﻿# Child Connect
 
 Child Connect is a Flutter-based adoption awareness and support platform designed to connect children, families, mentors, and support services in one mobile-first experience.
 
@@ -140,3 +140,8 @@ Current app version from `pubspec.yaml`:
 ## License
 
 This project is distributed under the license defined in the root `LICENSE` file.
+
+## ☕ Support
+
+If you find this project helpful, consider [supporting me](https://ompradippatil.netlify.app/donate).
+
