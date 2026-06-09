@@ -4,6 +4,8 @@ Child Connect is a Flutter-based adoption awareness and support platform designe
 
 The project focuses on making child support and adoption workflows more structured, accessible, and user-friendly through a clean app experience and secure backend integration.
 
+Live Demo - https://omspradippatil.github.io/child-connect/Website/index.html
+
 ## Features
 
 - User authentication flow with session handling
